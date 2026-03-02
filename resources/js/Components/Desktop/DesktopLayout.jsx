@@ -5,9 +5,28 @@ import { Sidebar } from './Sidebar';
 import { DesktopIcons } from './DesktopIcons';
 import { DraggableWindow } from './DraggableWindow';
 import { SampleAppContent } from '../Apps/SampleApp';
+import { useCallback, useState } from 'react';
+import {
+    IconFolder,
+    IconSettings,
+    IconTerminal2,
+    IconBrandDocker,
+    IconActivity,
+    IconDisc,
+} from '@tabler/icons-react';
+
+// Map database icon names to Tabler React components
+const ICON_MAP = {
+    IconFolder,
+    IconSettings,
+    IconTerminal2,
+    IconBrandDocker,
+    IconActivity,
+    IconDisc,
+};
 
 const APP_COMPONENTS = {
-    files: () => <SampleAppContent title="File Manager" emoji="📁" />,
+    filemanager: () => <SampleAppContent title="File Manager" emoji="📁" />,
     settings: () => <SampleAppContent title="Settings" emoji="⚙️" />,
     terminal: () => <SampleAppContent title="Terminal" emoji="💻" />,
     docker: () => <SampleAppContent title="Docker" emoji="🐳" />,
@@ -15,9 +34,62 @@ const APP_COMPONENTS = {
     storage: () => <SampleAppContent title="Storage" emoji="💾" />,
 };
 
-function DesktopContent({ version }) {
+function DesktopContent({ version, desktopApps = [], userIconPositions = {} }) {
     const theme = useMantineTheme();
     const { windows } = useWindow();
+    const [savingPosition, setSavingPosition] = useState(false);
+
+    // Handle icon position change - save to database
+    const handleIconPositionChange = useCallback(async (desktopAppId, positionX, positionY) => {
+        console.log('Saving position:', { desktopAppId, positionX, positionY });
+        try {
+            setSavingPosition(true);
+            const response = await fetch(`/api/desktop-icons/${desktopAppId}/position`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                },
+                body: JSON.stringify({
+                    position_x: positionX,
+                    position_y: positionY,
+                }),
+            });
+
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Failed to save icon position:', response.status, errorText);
+            } else {
+                const data = await response.json();
+                console.log('Position saved successfully:', data);
+            }
+        } catch (error) {
+            console.error('Error saving icon position:', error);
+        } finally {
+            setSavingPosition(false);
+        }
+    }, [desktopApps]);
+
+    // Transform desktop apps from database to format needed by components
+    const apps = desktopApps.map((app) => {
+        const IconComponent = ICON_MAP[app.icon_name] || IconFolder;
+        // Get user position if available - keys from Inertia are strings
+        const userPosition = userIconPositions[String(app.id)];
+        return {
+            id: app.identifier,
+            desktopAppId: app.id,
+            name: app.name,
+            icon: IconComponent,
+            color: app.color,
+            description: app.description,
+            type: app.type,
+            url: app.url,
+            component_path: app.component_path,
+            positionX: userPosition?.position_x ?? 0,
+            positionY: userPosition?.position_y ?? 0,
+        };
+    });
 
     return (
         <Box
@@ -58,7 +130,10 @@ function DesktopContent({ version }) {
                     }}
                 >
                     {/* Desktop Icons */}
-                    <DesktopIcons />
+                    <DesktopIcons
+                        apps={apps}
+                        onIconPositionChange={handleIconPositionChange}
+                    />
 
                     {/* Windows */}
                     {windows.map((win) => {
@@ -89,10 +164,10 @@ function DesktopContent({ version }) {
     );
 }
 
-export function DesktopLayout({ children, version = '1.0.0' }) {
+export function DesktopLayout({ children, version = '1.0.0', desktopApps = [], userIconPositions = {} }) {
     return (
         <WindowProvider>
-            <DesktopContent version={version} />
+            <DesktopContent version={version} desktopApps={desktopApps} userIconPositions={userIconPositions} />
             {children}
         </WindowProvider>
     );

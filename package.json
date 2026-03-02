@@ -18,6 +18,7 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@hello-pangea/dnd": "^18.0.1",
         "@inertiajs/react": "^2.3.15",
         "@mantine/carousel": "^8.3.15",
         "@mantine/charts": "^8.3.15",

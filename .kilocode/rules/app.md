@@ -291,7 +291,6 @@ The window system is built with React Context and consists of these key componen
 - **DraggableWindow** - The actual window component with drag/resize functionality
 - **DesktopLayout** - Main container combining header + desktop area + window management
 - **DesktopIcons** - Desktop icons that open apps on single-click
-- **AppLauncher** - Grid of apps accessible from header launcher button
 
 ## Creating a New App
 

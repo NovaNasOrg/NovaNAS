@@ -11,62 +11,35 @@ use Illuminate\Http\Request;
 class DesktopIconController extends Controller
 {
     /**
-     * Update icon position for the authenticated user.
+     * Update icon order for the authenticated user.
+     * This handles reordering icons via drag and drop.
      */
-    public function updatePosition(DesktopApp $desktopApp, UpdateIconPositionRequest $request): JsonResponse
-    {
-        $user = $request->user();
-        $validated = $request->validated();
-
-        // Find or create the user desktop icon entry
-        $userIcon = UserDesktopIcon::updateOrCreate(
-            [
-                'user_id' => $user->id,
-                'desktop_app_id' => $desktopApp->id,
-            ],
-            [
-                'position_x' => $validated['position_x'],
-                'position_y' => $validated['position_y'],
-            ]
-        );
-
-        return response()->json([
-            'success' => true,
-            'data' => $userIcon,
-        ]);
-    }
-
-    /**
-     * Update multiple icon positions at once.
-     */
-    public function updatePositions(Request $request): JsonResponse
+    public function updateOrder(Request $request): JsonResponse
     {
         $request->validate([
-            'positions' => ['required', 'array'],
-            'positions.*.desktop_app_id' => ['required', 'integer', 'exists:desktop_apps,id'],
-            'positions.*.position_x' => ['required', 'integer', 'min:0'],
-            'positions.*.position_y' => ['required', 'integer', 'min:0'],
+            'orders' => ['required', 'array'],
+            'orders.*.desktop_app_id' => ['required', 'integer', 'exists:desktop_apps,id'],
+            'orders.*.order' => ['required', 'integer', 'min:0'],
         ]);
 
         $user = $request->user();
-        $positions = $request->input('positions');
+        $orders = $request->input('orders');
 
-        foreach ($positions as $position) {
+        foreach ($orders as $item) {
             UserDesktopIcon::updateOrCreate(
                 [
                     'user_id' => $user->id,
-                    'desktop_app_id' => $position['desktop_app_id'],
+                    'desktop_app_id' => $item['desktop_app_id'],
                 ],
                 [
-                    'position_x' => $position['position_x'],
-                    'position_y' => $position['position_y'],
+                    'order' => $item['order'],
                 ]
             );
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Positions updated successfully',
+            'message' => 'Icon order updated successfully',
         ]);
     }
 
@@ -77,7 +50,7 @@ class DesktopIconController extends Controller
     {
         $request->validate([
             'desktop_app_id' => ['required', 'integer', 'exists:desktop_apps,id'],
-            'is_visible_desktop' => ['required', 'boolean'],
+            'is_visible' => ['required', 'boolean'],
         ]);
 
         $user = $request->user();
@@ -88,7 +61,7 @@ class DesktopIconController extends Controller
                 'desktop_app_id' => $request->input('desktop_app_id'),
             ],
             [
-                'is_visible_desktop' => $request->input('is_visible_desktop'),
+                'is_visible' => $request->input('is_visible'),
             ]
         );
 
@@ -99,9 +72,9 @@ class DesktopIconController extends Controller
     }
 
     /**
-     * Get all icon positions for the authenticated user.
+     * Get all icon orders for the authenticated user.
      */
-    public function positions(): JsonResponse
+    public function orders(): JsonResponse
     {
         $user = auth()->user();
 

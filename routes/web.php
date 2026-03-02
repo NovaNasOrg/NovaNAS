@@ -24,9 +24,8 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('/', [HomeController::class, 'index']);
     Route::get('/api/system/info', [SystemController::class, 'info']);
 
-    // Desktop icon routes
-    Route::put('/api/desktop-icons/{desktopApp}/position', [DesktopIconController::class, 'updatePosition']);
-    Route::put('/api/desktop-icons/positions', [DesktopIconController::class, 'updatePositions']);
+    // Desktop icon routes - order based (simple 1, 2, 3, 4...)
+    Route::put('/api/desktop-icons/order', [DesktopIconController::class, 'updateOrder']);
     Route::put('/api/desktop-icons/visibility', [DesktopIconController::class, 'toggleVisibility']);
-    Route::get('/api/desktop-icons/positions', [DesktopIconController::class, 'positions']);
+    Route::get('/api/desktop-icons/orders', [DesktopIconController::class, 'orders']);
 });

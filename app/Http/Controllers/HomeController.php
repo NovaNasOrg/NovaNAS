@@ -21,16 +21,16 @@ class HomeController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Get user icon positions
-        $userIconPositions = UserDesktopIcon::where('user_id', $user->id)
-            ->where('is_visible_desktop', true)
+        // Get user icon orders
+        $userIconOrders = UserDesktopIcon::where('user_id', $user->id)
+            ->where('is_visible', true)
             ->get()
             ->keyBy('desktop_app_id');
 
         return Inertia::render('Home', [
             'version' => config('app.version'),
             'desktopApps' => $desktopApps,
-            'userIconPositions' => $userIconPositions,
+            'userIconOrders' => $userIconOrders,
         ]);
     }
 }

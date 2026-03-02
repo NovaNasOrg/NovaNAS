@@ -9,15 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * User Desktop Icon Model
  *
- * Represents a user's desktop icon placement for a specific app.
+ * Represents a user's desktop icon for a specific app with ordering.
  *
  * @property int $id
  * @property int $user_id
  * @property int $desktop_app_id
- * @property int $position_x
- * @property int $position_y
- * @property bool $is_visible_desktop
- * @property bool $is_visible_launcher
+ * @property int $order
+ * @property bool $is_visible
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -33,10 +31,8 @@ class UserDesktopIcon extends Model
     protected $fillable = [
         'user_id',
         'desktop_app_id',
-        'position_x',
-        'position_y',
-        'is_visible_desktop',
-        'is_visible_launcher',
+        'order',
+        'is_visible',
     ];
 
     /**
@@ -47,10 +43,8 @@ class UserDesktopIcon extends Model
     protected function casts(): array
     {
         return [
-            'is_visible_desktop' => 'boolean',
-            'is_visible_launcher' => 'boolean',
-            'position_x' => 'integer',
-            'position_y' => 'integer',
+            'is_visible' => 'boolean',
+            'order' => 'integer',
         ];
     }
 

@@ -169,9 +169,9 @@ class DesktopApp extends Model
     }
 
     /**
-     * Scope to include apps with user icon positions.
+     * Scope to include apps with user icon orders.
      */
-    public function scopeWithUserPosition($query, int $userId)
+    public function scopeWithUserOrder($query, int $userId)
     {
         return $query->with(['userDesktopIcons' => function ($q) use ($userId) {
             $q->where('user_id', $userId);
@@ -179,19 +179,14 @@ class DesktopApp extends Model
     }
 
     /**
-     * Get user icon position for a specific user.
+     * Get user icon order for a specific user.
      */
-    public function getUserPosition(int $userId): ?array
+    public function getUserOrder(int $userId): ?int
     {
         $userIcon = $this->userDesktopIcons->firstWhere('user_id', $userId);
 
         if ($userIcon) {
-            return [
-                'position_x' => $userIcon->position_x,
-                'position_y' => $userIcon->position_y,
-                'is_visible_desktop' => $userIcon->is_visible_desktop,
-                'is_visible_launcher' => $userIcon->is_visible_launcher,
-            ];
+            return $userIcon->order;
         }
 
         return null;

@@ -34,60 +34,65 @@ const APP_COMPONENTS = {
     storage: () => <SampleAppContent title="Storage" emoji="💾" />,
 };
 
-function DesktopContent({ version, desktopApps = [], userIconPositions = {} }) {
+function DesktopContent({ version, desktopApps = [], userIconOrders = {} }) {
     const theme = useMantineTheme();
     const { windows } = useWindow();
     const [savingPosition, setSavingPosition] = useState(false);
 
-    // Handle icon position change - save to database
-    const handleIconPositionChange = useCallback(async (desktopAppId, positionX, positionY) => {
-        console.log('Saving position:', { desktopAppId, positionX, positionY });
+    // Handle icon order change - save to database
+    const handleIconPositionChange = useCallback(async (orders) => {
         try {
             setSavingPosition(true);
-            const response = await fetch(`/api/desktop-icons/${desktopAppId}/position`, {
+            const response = await fetch(`/api/desktop-icons/order`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
                 },
                 body: JSON.stringify({
-                    position_x: positionX,
-                    position_y: positionY,
+                    orders: orders,
                 }),
             });
 
-            console.log('Response status:', response.status);
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Failed to save icon position:', response.status, errorText);
-            } else {
-                const data = await response.json();
-                console.log('Position saved successfully:', data);
-            }
+            const data = await response.json();
+            console.log('Order saved successfully:', response.ok, data);
         } catch (error) {
-            console.error('Error saving icon position:', error);
+            console.error('Error saving icon order:', error);
         } finally {
             setSavingPosition(false);
         }
-    }, [desktopApps]);
+    }, []);
 
     // Transform desktop apps from database to format needed by components
     const apps = desktopApps.map((app) => {
-        const IconComponent = ICON_MAP[app.icon_name] || IconFolder;
-        // Get user position if available - keys from Inertia are strings
-        const userPosition = userIconPositions[String(app.id)];
+        const iconName = app.icon_name;
+        // Get user order if available - keys from Inertia are strings
+        const userOrder = userIconOrders[String(app.id)];
+        // Map database color names to valid Mantine theme colors
+        const colorMap = {
+            blue: 'blue',
+            gray: 'gray',
+            dark: 'dark',
+            green: 'green',
+            orange: 'orange',
+            violet: 'violet',
+            red: 'red',
+            yellow: 'yellow',
+            cyan: 'cyan',
+            teal: 'teal',
+        };
+        const mappedColor = colorMap[app.color] || 'blue';
         return {
             id: app.identifier,
             desktopAppId: app.id,
             name: app.name,
-            icon: IconComponent,
-            color: app.color,
+            iconName: iconName,
+            color: mappedColor,
             description: app.description,
             type: app.type,
             url: app.url,
             component_path: app.component_path,
-            positionX: userPosition?.position_x ?? 0,
-            positionY: userPosition?.position_y ?? 0,
+            order: userOrder?.order ?? (app.id - 1), // Use database order or fallback to app id as order
         };
     });
 
@@ -164,10 +169,10 @@ function DesktopContent({ version, desktopApps = [], userIconPositions = {} }) {
     );
 }
 
-export function DesktopLayout({ children, version = '1.0.0', desktopApps = [], userIconPositions = {} }) {
+export function DesktopLayout({ children, version = '1.0.0', desktopApps = [], userIconOrders = {} }) {
     return (
         <WindowProvider>
-            <DesktopContent version={version} desktopApps={desktopApps} userIconPositions={userIconPositions} />
+            <DesktopContent version={version} desktopApps={desktopApps} userIconOrders={userIconOrders} />
             {children}
         </WindowProvider>
     );

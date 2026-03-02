@@ -5,29 +5,12 @@ import { Sidebar } from './Sidebar';
 import { DesktopIcons } from './DesktopIcons';
 import { DraggableWindow } from './DraggableWindow';
 import { SampleAppContent } from '../Apps/SampleApp';
+import { SettingsAppContent } from '../Apps/SettingsApp';
 import { useCallback, useState } from 'react';
-import {
-    IconFolder,
-    IconSettings,
-    IconTerminal2,
-    IconBrandDocker,
-    IconActivity,
-    IconDisc,
-} from '@tabler/icons-react';
-
-// Map database icon names to Tabler React components
-const ICON_MAP = {
-    IconFolder,
-    IconSettings,
-    IconTerminal2,
-    IconBrandDocker,
-    IconActivity,
-    IconDisc,
-};
 
 const APP_COMPONENTS = {
     filemanager: () => <SampleAppContent title="File Manager" emoji="📁" />,
-    settings: () => <SampleAppContent title="Settings" emoji="⚙️" />,
+    settings: () => <SettingsAppContent />,
     terminal: () => <SampleAppContent title="Terminal" emoji="💻" />,
     docker: () => <SampleAppContent title="Docker" emoji="🐳" />,
     monitor: () => <SampleAppContent title="Monitor" emoji="📊" />,

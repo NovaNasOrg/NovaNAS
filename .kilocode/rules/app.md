@@ -288,56 +288,99 @@ Create your app component in `resources/js/Components/Apps/`. Use Mantine compon
 
 ```jsx
 // resources/js/Components/Apps/MyNewApp.jsx
-import { ScrollArea, Stack, Text, Title } from '@mantine/core';
+import { Box, Text, Title } from '@mantine/core';
 
-export default function MyNewApp() {
+export function MyNewAppContent({ title, emoji }) {
     return (
-        <ScrollArea h="100%">
-            <Stack p="md">
-                <Title order={2}>My New App</Title>
-                <Text>App content goes here...</Text>
-            </Stack>
-        </ScrollArea>
+        <Box style={{ padding: '24px', height: '100%' }}>
+            <Title order={2}>{title}</Title>
+            <Text>App content goes here...</Text>
+        </Box>
     );
 }
 ```
 
-### 2. Register the App in DesktopLayout
+### 2. Register the App Component in DesktopLayout
 
 Open `resources/js/Components/Desktop/DesktopLayout.jsx` and:
 
-1. Import your new app component:
+1. Import your new app component (if not already using a sample):
 ```jsx
-import MyNewApp from '../Apps/MyNewApp';
+import { SampleAppContent } from '../Apps/SampleApp';
+// Or import your custom component:
+// import { MyNewAppContent } from '../Apps/MyNewApp';
 ```
 
-2. Add it to the `APP_COMPONENTS` object:
+2. Add it to the `APP_COMPONENTS` object using the same `identifier` you will use in the database:
 ```jsx
 const APP_COMPONENTS = {
-    filemanager: FileManagerApp,
-    settings: SettingsApp,
-    terminal: TerminalApp,
-    docker: DockerApp,
-    monitor: MonitorApp,
-    storage: StorageApp,
-    mynewapp: MyNewApp,  // Add this line
+    filemanager: () => <SampleAppContent title="File Manager" emoji="📁" />,
+    settings: () => <SampleAppContent title="Settings" emoji="⚙️" />,
+    terminal: () => <SampleAppContent title="Terminal" emoji="💻" />,
+    docker: () => <SampleAppContent title="Docker" emoji="🐳" />,
+    monitor: () => <SampleAppContent title="Monitor" emoji="📊" />,
+    storage: () => <SampleAppContent title="Storage" emoji="💾" />,
+    mynewapp: () => <SampleAppContent title="My New App" emoji="🚀" />,  // Add this line
+    // Or use your custom component:
+    // mynewapp: () => <MyNewAppContent />,
 };
 ```
 
-3. Add the app to the `AVAILABLE_APPS` array in both `apps` and `desktopIcons`:
+3. Add the icon to the `ICON_MAP` object for icon name mapping:
 ```jsx
-const AVAILABLE_APPS = [
-    { id: 'filemanager', name: 'File Manager', icon: IconFolder, color: 'blue' },
-    { id: 'settings', name: 'Settings', icon: IconSettings, color: 'gray' },
-    { id: 'terminal', name: 'Terminal', icon: IconTerminal2, color: 'dark' },
-    { id: 'docker', name: 'Docker', icon: IconBrandDocker, color: 'blue' },
-    { id: 'monitor', name: 'Monitor', icon: IconActivity, color: 'green' },
-    { id: 'storage', name: 'Storage', icon: IconDisc, color: 'orange' },
-    { id: 'mynewapp', name: 'My New App', icon: IconApp, color: 'violet' },  // Add this
+const ICON_MAP = {
+    IconFolder,
+    IconSettings,
+    IconTerminal2,
+    IconBrandDocker,
+    IconActivity,
+    IconDisc,
+    IconApps,  // Add your icon here
+};
+```
+
+### 3. Add the App to the Database
+
+Add your app to the `desktop_apps` table via a migration or by seeding. Update `database/migrations/2026_02_24_234837_create_desktop_apps_table.php`:
+
+```php
+$apps = [
+    // ... existing apps
+    [
+        'identifier' => 'mynewapp',
+        'name' => 'My New App',
+        'description' => 'Description of my new app',
+        'type' => 'component',  // or 'url' for external links
+        'icon_type' => 'tabler',
+        'icon_name' => 'IconApps',  // Must match a key in ICON_MAP
+        'color' => '#8b5cf6',  // HEX color or named color (blue, green, etc.)
+        'component_path' => 'MyNewApp',  // Used for reference
+        'is_system' => true,
+        'is_global' => true,
+        'is_admin_only' => false,
+    ],
 ];
 ```
 
-### 3. Available Icons
+### Database Schema
+
+The `desktop_apps` table has these key fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `identifier` | string | Unique key (e.g., 'filemanager', 'docker') |
+| `name` | string | Display name |
+| `type` | enum | 'component' or 'url' |
+| `url` | string | URL if type is 'url' |
+| `icon_type` | enum | 'tabler' or 'image' |
+| `icon_name` | string | Icon component name (e.g., 'IconFolder') |
+| `color` | string | HEX color or named color |
+| `component_path` | string | Component identifier for reference |
+| `is_system` | boolean | System app (cannot be deleted) |
+| `is_global` | boolean | Visible to all users |
+| `is_admin_only` | boolean | Only visible to admins |
+
+### Available Icons
 
 Use icons from `@tabler/icons-react`. Common ones include:
 - `IconFolder` - File Manager
@@ -351,7 +394,7 @@ Use icons from `@tabler/icons-react`. Common ones include:
 - `IconUsers` - User management
 - `IconNetwork` - Network settings
 
-### 4. Window Features
+### Window Features
 
 Windows automatically support:
 - **Drag** - Click and drag the title bar to move
@@ -360,8 +403,12 @@ Windows automatically support:
 - **Close** - Click the X button to close the window
 - **Focus** - Clicking a window brings it to front (highest z-index)
 
-### 5. Adding to App Launcher
+### How It Works
 
-The app will automatically appear in the App Launcher (accessible via the header button) and on the desktop icons if added to `desktopIcons` in `AVAILABLE_APPS`.
+1. Apps are stored in the `desktop_apps` database table
+2. The frontend fetches apps from the backend via Inertia props
+3. Icons are mapped from database `icon_name` to Tabler React components via `ICON_MAP`
+4. Component rendering is handled by `APP_COMPONENTS` lookup
+5. User-specific icon order is stored in `user_desktop_icons` table
 
 </laravel-boost-guidelines>

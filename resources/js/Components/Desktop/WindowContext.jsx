@@ -2,6 +2,10 @@ import { createContext, useContext, useState, useCallback } from 'react';
 
 const WindowContext = createContext(undefined);
 
+const HEADER_HEIGHT = 48;
+const SIDEBAR_WIDTH = 280;
+const HEADER_Z_INDEX = 1000;
+
 export function WindowProvider({ children }) {
     const [windows, setWindows] = useState([]);
     const [maxZIndex, setMaxZIndex] = useState(100);
@@ -62,10 +66,10 @@ export function WindowProvider({ children }) {
                     return {
                         ...w,
                         maximized: false,
-                        x: w.prevPosition?.x ?? w.x,
-                        y: w.prevPosition?.y ?? w.y,
-                        width: w.prevPosition?.width ?? w.width,
-                        height: w.prevPosition?.height ?? w.height,
+                        x: w.prevPosition?.x ?? 100,
+                        y: w.prevPosition?.y ?? 50,
+                        width: w.prevPosition?.width ?? 800,
+                        height: w.prevPosition?.height ?? 600,
                         zIndex: maxZIndex + 1,
                     };
                 }
@@ -75,10 +79,10 @@ export function WindowProvider({ children }) {
                     maximized: true,
                     prevPosition: { x: w.x, y: w.y, width: w.width, height: w.height },
                     x: 0,
-                    y: 0,
-                    width: globalThis.window.innerWidth,
-                    height: globalThis.window.innerHeight - 48,
-                    zIndex: maxZIndex + 1,
+                    y: HEADER_HEIGHT,
+                    width: globalThis.window.innerWidth - SIDEBAR_WIDTH,
+                    height: globalThis.window.innerHeight - HEADER_HEIGHT,
+                    zIndex: HEADER_Z_INDEX + 1,
                 };
             })
         );

@@ -127,10 +127,10 @@ export function DraggableWindow({ windowState, children }) {
         <Box
             style={{
                 position: 'absolute',
-                left: windowState.x,
-                top: windowState.y,
-                width: windowState.width,
-                height: windowState.height,
+                left: windowState.maximized ? 0 : windowState.x,
+                top: windowState.maximized ? 0 : windowState.y,
+                width: windowState.maximized ? '100%' : windowState.width,
+                height: windowState.maximized ? '100%' : windowState.height,
                 zIndex: windowState.zIndex,
                 display: 'flex',
                 flexDirection: 'column',

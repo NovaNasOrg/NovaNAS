@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Group, Text, ActionIcon, Menu, Avatar, Tooltip, useMantineTheme } from '@mantine/core';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import {
     IconBell,
     IconSettings,
@@ -117,7 +117,11 @@ export function Header() {
                             Settings
                         </Menu.Item>
                         <Menu.Divider />
-                        <Menu.Item color="red" leftSection={<IconLogout size={14} />}>
+                        <Menu.Item
+                            color="red"
+                            leftSection={<IconLogout size={14} />}
+                            onClick={() => router.post('/logout')}
+                        >
                             Logout
                         </Menu.Item>
                     </Menu.Dropdown>

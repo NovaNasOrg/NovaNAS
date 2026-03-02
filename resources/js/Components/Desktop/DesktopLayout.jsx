@@ -68,7 +68,7 @@ function DesktopContent({ version, desktopApps = [], userIconOrders = {} }) {
         const iconName = app.icon_name;
         // Get user order if available - keys from Inertia are strings
         const userOrder = userIconOrders[String(app.id)];
-        // Map database color names to valid Mantine theme colors
+        // Map database color names to valid Mantine theme colors or pass through HEX colors
         const colorMap = {
             blue: 'blue',
             gray: 'gray',
@@ -81,7 +81,8 @@ function DesktopContent({ version, desktopApps = [], userIconOrders = {} }) {
             cyan: 'cyan',
             teal: 'teal',
         };
-        const mappedColor = colorMap[app.color] || 'blue';
+        // If the color starts with #, it's a HEX color - pass it through directly
+        const mappedColor = app.color.startsWith('#') ? app.color : (colorMap[app.color] || 'blue');
         return {
             id: app.identifier,
             desktopAppId: app.id,

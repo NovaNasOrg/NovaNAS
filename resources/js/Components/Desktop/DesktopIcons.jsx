@@ -1,4 +1,4 @@
-import { Box, Text } from '@mantine/core';
+import { Box, Text, Title } from '@mantine/core';
 import { useWindow } from './WindowContext';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -122,12 +122,20 @@ export function DesktopIcons({ apps = [], onIconPositionChange }) {
                 bottom: 0,
                 padding: '20px',
                 display: 'flex',
-                flexWrap: 'wrap',
+                flexDirection: 'column',
                 alignContent: 'flex-start',
                 gap: '16px',
                 overflow: 'auto',
             }}
         >
+            <Box style={{ padding: '0 4px 16px 4px' }}>
+                <Text size="lg" fw={600} c="white" style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)' }}>
+                    Applications
+                </Text>
+                <Text size="xs" c="dimmed">
+                    Drag and drop to reorganize
+                </Text>
+            </Box>
             <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <Droppable droppableId="desktop-icons" direction="horizontal">
                     {(provided) => (
@@ -163,7 +171,7 @@ export function DesktopIcons({ apps = [], onIconPositionChange }) {
                                                     gap: '8px',
                                                     padding: '8px',
                                                     borderRadius: '8px',
-                                                    cursor: 'grab',
+                                                    cursor: snapshot.isDragging ? 'grabbing' : 'pointer',
                                                     opacity: snapshot.isDragging ? 0.8 : 1,
                                                     zIndex: snapshot.isDragging ? 1000 : 1,
                                                 }}

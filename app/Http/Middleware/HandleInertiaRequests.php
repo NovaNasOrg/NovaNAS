@@ -35,6 +35,11 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Skip sharing data for API routes
+        if ($request->is('api/*')) {
+            return [];
+        }
+
         return [
             ...parent::share($request),
             'auth' => [

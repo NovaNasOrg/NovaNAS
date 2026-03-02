@@ -22,10 +22,15 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::group(['middleware' => 'auth'], function () {
     Route::get('/', [HomeController::class, 'index']);
-    Route::get('/api/system/info', [SystemController::class, 'info']);
 
-    // Desktop icon routes - order based (simple 1, 2, 3, 4...)
-    Route::put('/api/desktop-icons/order', [DesktopIconController::class, 'updateOrder']);
-    Route::put('/api/desktop-icons/visibility', [DesktopIconController::class, 'toggleVisibility']);
-    Route::get('/api/desktop-icons/orders', [DesktopIconController::class, 'orders']);
+    Route::withoutMiddleware(\App\Http\Middleware\HandleInertiaRequests::class)->group(function () {
+        Route::get('/api/system/info', [SystemController::class, 'info']);
+
+        // Desktop icon routes - order based (simple 1, 2, 3, 4...)
+        Route::put('/api/desktop-icons/order', [DesktopIconController::class, 'updateOrder']);
+        Route::put('/api/desktop-icons/visibility', [DesktopIconController::class, 'toggleVisibility']);
+        Route::get('/api/desktop-icons/orders', [DesktopIconController::class, 'orders']);
+    });
+
+    // API routes - exclude Inertia middleware
 });

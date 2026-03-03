@@ -35,7 +35,6 @@ export function DesktopIcons({ apps = [], onIconPositionChange }) {
             // Sort by order if available
             const sortedApps = [...apps].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
             const initialOrder = sortedApps.map(app => app.desktopAppId || app.id);
-            console.log('Initializing icon order:', initialOrder);
             setIconOrder(initialOrder);
         }
     }, [apps]); // Only run when apps changes, not when iconOrder changes

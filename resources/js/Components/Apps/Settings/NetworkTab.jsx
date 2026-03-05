@@ -145,22 +145,14 @@ function NetworkEditModal({ opened, onClose, interface: iface, onSave }) {
 
     if (!iface) return null;
 
-    const inputStyles = {
-        input: { backgroundColor: theme.colors.dark[5], borderColor: theme.colors.dark[4], color: 'white' },
-        label: { color: theme.colors.gray[3] },
-    };
+    const inputStyles = {};
 
     return (
         <Modal
             opened={opened}
             onClose={onClose}
-            title={<Text fw={600} c="white">Configure {iface.name}</Text>}
+            title={<Text fw={600}>Configure {iface.name}</Text>}
             centered
-            overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
-            styles={{
-                content: { backgroundColor: theme.colors.dark[6] },
-                header: { backgroundColor: theme.colors.dark[6] },
-            }}
         >
             <Stack gap="md">
                 {error && (

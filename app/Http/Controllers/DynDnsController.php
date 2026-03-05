@@ -240,6 +240,20 @@ class DynDnsController extends Controller
     }
 
     /**
+     * Get DynDNS service info.
+     */
+    public function getInfo(): JsonResponse
+    {
+        $provider = $this->providerManager->getProvider('novanas');
+        $info = $provider->getInfo();
+
+        return response()->json([
+            'max_subdomains' => $info['max_subdomains'],
+            'domain' => $info['domain'],
+        ]);
+    }
+
+    /**
      * Format a config for JSON response.
      *
      * @return array<string, mixed>

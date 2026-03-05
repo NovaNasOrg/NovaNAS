@@ -44,6 +44,7 @@ Route::group(['middleware' => 'auth'], function () {
 
         // DynDNS routes
         Route::get('/api/dyndns/configs', [DynDnsController::class, 'index']);
+        Route::get('/api/dyndns/info', [DynDnsController::class, 'getInfo']);
         Route::post('/api/dyndns/configs', [DynDnsController::class, 'store']);
         Route::put('/api/dyndns/configs/{id}', [DynDnsController::class, 'update']);
         Route::delete('/api/dyndns/configs/{id}', [DynDnsController::class, 'destroy']);

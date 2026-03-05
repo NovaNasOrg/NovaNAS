@@ -56,15 +56,17 @@ interface DynDNSProviderInterface
     public function getBaseUrl(): string;
 
     /**
-     * Get the HTTP method to use for updates.
-     */
-    public function getHttpMethod(): string;
-
-    /**
      * Build the query parameters for the update request.
      *
      * @param array{subdomain: string, token: string} $config
      * @return array<string, string>
      */
     public function buildQueryParams(array $config): array;
+
+    /**
+     * Get info about the DynDNS service.
+     *
+     * @return array{max_subdomains: int, domain: string}
+     */
+    public function getInfo(): array;
 }

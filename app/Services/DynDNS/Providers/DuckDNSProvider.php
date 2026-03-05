@@ -138,14 +138,6 @@ class DuckDNSProvider implements DynDNSProviderInterface
     }
 
     /**
-     * Get the HTTP method to use for updates.
-     */
-    public function getHttpMethod(): string
-    {
-        return 'GET';
-    }
-
-    /**
      * Build the query parameters for the update request.
      *
      * @param array{subdomain: string, token: string} $config
@@ -156,6 +148,19 @@ class DuckDNSProvider implements DynDNSProviderInterface
         return [
             'domains' => $config['subdomain'],
             'token' => $config['token'],
+        ];
+    }
+
+    /**
+     * Get info about the DynDNS service.
+     *
+     * @return array{max_subdomains: int, domain: string}
+     */
+    public function getInfo(): array
+    {
+        return [
+            'max_subdomains' => 5, // DuckDNS allows 5 subdomains per account
+            'domain' => 'duckdns.org',
         ];
     }
 }

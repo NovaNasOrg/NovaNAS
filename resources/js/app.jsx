@@ -21,6 +21,6 @@ createInertiaApp({
         return pages[`./Pages/${name}.jsx`]
     },
     setup({ el, App, props }) {
-        createRoot(el).render(<MantineProvider><App {...props} /></MantineProvider>)
+        createRoot(el).render(<MantineProvider defaultColorScheme="dark"><App {...props} /></MantineProvider>)
     },
 })

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\SubdomainRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDynDnsConfigRequest extends FormRequest
@@ -30,7 +31,11 @@ class StoreDynDnsConfigRequest extends FormRequest
         return [
             'provider' => 'required|string|max:50',
             'name' => 'required|string|max:255',
-            'subdomain' => 'required|string|max:255',
+            'subdomain' => [
+                'required',
+                'string',
+                new SubdomainRule(),
+            ],
             'token' => $tokenRule,
             'interval_minutes' => 'required|integer|min:1|max:1440',
             'is_enabled' => 'boolean',

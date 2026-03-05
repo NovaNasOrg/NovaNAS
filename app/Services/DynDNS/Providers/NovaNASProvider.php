@@ -65,7 +65,7 @@ class NovaNASProvider implements DynDNSProviderInterface
      */
     public function register(array $config): array
     {
-        $url = $this->getRegisterUrl();
+        $url = $this->getBaseUrl() . '/register';
 
         try {
             $response = Http::post($url, [
@@ -147,7 +147,7 @@ class NovaNASProvider implements DynDNSProviderInterface
      */
     public function update(array $config): array
     {
-        $url = $this->getUpdateUrl($config['subdomain']);
+        $url = $this->getBaseUrl() . '/' . $config['subdomain'];
 
         try {
             $data = [
@@ -209,31 +209,7 @@ class NovaNASProvider implements DynDNSProviderInterface
      */
     public function getBaseUrl(): string
     {
-        return rtrim(config('services.novanas.api_url', 'https://api.novanas.org/api'), '/');
-    }
-
-    /**
-     * Get the registration URL.
-     */
-    public function getRegisterUrl(): string
-    {
-        return $this->getBaseUrl() . '/dyndns/register';
-    }
-
-    /**
-     * Get the update URL for a subdomain.
-     */
-    public function getUpdateUrl(string $subdomain): string
-    {
-        return $this->getBaseUrl() . '/dyndns/' . $subdomain;
-    }
-
-    /**
-     * Get the HTTP method to use for updates.
-     */
-    public function getHttpMethod(): string
-    {
-        return 'PUT';
+        return rtrim(config('services.novanas.api_url').'/dyndns', '/');
     }
 
     /**
@@ -244,7 +220,7 @@ class NovaNASProvider implements DynDNSProviderInterface
      */
     public function delete(array $config): array
     {
-        $url = $this->getDeleteUrl($config['subdomain']);
+        $url = $this->getBaseUrl() . '/' . $config['subdomain'];
 
         try {
             $response = Http::delete($url, [
@@ -291,14 +267,6 @@ class NovaNASProvider implements DynDNSProviderInterface
     }
 
     /**
-     * Get the delete URL for a subdomain.
-     */
-    public function getDeleteUrl(string $subdomain): string
-    {
-        return $this->getBaseUrl() . '/dyndns/' . $subdomain;
-    }
-
-    /**
      * Build the query parameters for the update request.
      * Note: NovaNAS uses PUT with JSON body, so this returns empty array.
      *
@@ -309,5 +277,48 @@ class NovaNASProvider implements DynDNSProviderInterface
     {
         // NovaNAS uses PUT with JSON body, not query params
         return [];
+    }
+
+    /**
+     * Get the info about the DynDNS service.
+     *
+     * @return array{max_subdomains: int, domain: string}
+     */
+    public function getInfo(): array
+    {
+        $url = $this->getBaseUrl() . '/info';
+
+        try {
+            $response = Http::get($url);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                return [
+                    'max_subdomains' => $data['max_subdomains_per_ip'] ?? 0,
+                    'domain' => $data['domain'] ?? $this->getBaseDomain(),
+                ];
+            }
+
+            Log::warning('NovaNAS info request failed', [
+                'status' => $response->status(),
+                'response' => $response->json(),
+            ]);
+
+            // Return defaults if the request fails
+            return [
+                'max_subdomains' => 0,
+                'domain' => $this->getBaseDomain(),
+            ];
+        } catch (\Exception $e) {
+            Log::error('NovaNAS info request exception', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'max_subdomains' => 0,
+                'domain' => $this->getBaseDomain(),
+            ];
+        }
     }
 }

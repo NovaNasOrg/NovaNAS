@@ -23,6 +23,7 @@ import {
     IconTrash,
     IconEdit,
     IconCloud,
+    IconInfoCircle,
 } from '@tabler/icons-react';
 
 export function DynDnsTab() {
@@ -45,10 +46,23 @@ export function DynDnsTab() {
     });
 
     const [modalError, setModalError] = useState(null);
+    const [dynDnsInfo, setDynDnsInfo] = useState({ max_subdomains: 0, domain: '' });
+    const [subdomainError, setSubdomainError] = useState(null);
 
     useEffect(() => {
         fetchConfigs();
+        fetchDynDnsInfo();
     }, []);
+
+    const fetchDynDnsInfo = async () => {
+        try {
+            const response = await fetch('/api/dyndns/info');
+            const data = await response.json();
+            setDynDnsInfo(data || { max_subdomains: 0, domain: '' });
+        } catch (err) {
+            console.error('Failed to load DynDNS info:', err);
+        }
+    };
 
     const fetchConfigs = async () => {
         try {
@@ -69,6 +83,15 @@ export function DynDnsTab() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Validate subdomain before submitting
+        const subdomainValidation = validateSubdomain(formData.subdomain);
+        if (subdomainValidation) {
+            setSubdomainError(subdomainValidation);
+            return;
+        }
+
+        setModalError(null);
 
         try {
             // Always use NovaNAS provider and fixed 5-minute interval
@@ -139,6 +162,7 @@ export function DynDnsTab() {
     const openEditModal = (config) => {
         setEditingConfig(config);
         setModalError(null);
+        setSubdomainError(null);
         setFormData({
             provider: config.provider,
             name: config.name,
@@ -153,6 +177,7 @@ export function DynDnsTab() {
     const resetForm = () => {
         setEditingConfig(null);
         setModalError(null);
+        setSubdomainError(null);
         setFormData({
             provider: 'novanas',
             name: '',
@@ -172,6 +197,35 @@ export function DynDnsTab() {
         value: p.key,
         label: p.name,
     }));
+
+    // Validate subdomain according to DNS naming rules (matching backend SubdomainRule)
+    const validateSubdomain = (value) => {
+        if (!value) {
+            return 'Subdomain is required';
+        }
+        if (value.length > 63) {
+            return 'Subdomain may not be greater than 63 characters.';
+        }
+        // Only lowercase letters, numbers, hyphens; no leading/trailing hyphens; min 1 char
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(value)) {
+            return 'Subdomain may only contain lowercase letters, numbers, and hyphens, and must not start or end with a hyphen.';
+        }
+        // Block consecutive hyphens in positions 3 and 4 (RFC 5891)
+        if (value.length >= 4 && value.substring(2, 4) === '--') {
+            return 'Subdomain must not have hyphens in both the 3rd and 4th position.';
+        }
+        // Block all-numeric labels
+        if (/^[0-9]+$/.test(value)) {
+            return 'Subdomain must not be entirely numeric.';
+        }
+        return null;
+    };
+
+    const handleSubdomainChange = (e) => {
+        const value = e.target.value;
+        setFormData({ ...formData, subdomain: value });
+        setSubdomainError(validateSubdomain(value));
+    };
 
     if (loading) {
         return (
@@ -203,20 +257,8 @@ export function DynDnsTab() {
                     mb="md"
                     onClose={() => setError(null)}
                     withCloseButton
-                    styles={{
-                        root: {
-                            backgroundColor: 'rgba(227, 48, 56, 0.15)',
-                            borderColor: 'rgba(227, 48, 56, 0.5)',
-                        },
-                        message: {
-                            color: '#ff9999',
-                        },
-                        title: {
-                            color: '#ff9999',
-                        },
-                    }}
                 >
-                    <Text c="#ff9999">{error}</Text>
+                    {error}
                 </Alert>
             )}
 
@@ -242,7 +284,8 @@ export function DynDnsTab() {
                     </Button>
                 </Box>
             ) : (
-                <Stack gap="md">
+                <>
+                    <Stack gap="md">
                     {configs.map((config) => (
                         <Box
                             key={config.id}
@@ -319,35 +362,36 @@ export function DynDnsTab() {
                             </Group>
                         </Box>
                     ))}
-                </Stack>
+                    </Stack>
+                </>
             )}
 
             <Modal
                 opened={opened}
                 onClose={closeModal}
-                title={editingConfig ? 'Edit DynDNS Configuration' : 'Add DynDNS Configuration'}
+                title={<Text fw={600}>{editingConfig ? 'Edit DynDNS Configuration' : 'Add DynDNS Configuration'}</Text>}
                 size="md"
+                centered
             >
                 <form onSubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
                     <Stack gap="md">
-                        {modalError && (
+                        {formData.provider === 'novanas' && (
                             <Alert
-                                color="red"
+                                color="blue"
                                 variant="light"
-                                styles={{
-                                    root: {
-                                        backgroundColor: 'rgba(227, 48, 56, 0.15)',
-                                        borderColor: 'rgba(227, 48, 56, 0.5)',
-                                    },
-                                    message: {
-                                        color: '#ff9999',
-                                    },
-                                    title: {
-                                        color: '#ff9999',
-                                    },
-                                }}
+                                icon={<IconInfoCircle size={16} />}
                             >
-                                <Text c="#ff9999">{modalError}</Text>
+                                <Text fw={500} mb="xs">NovaNAS Cloud DynDNS</Text>
+                                <Text size="sm">
+                                    Free dynamic DNS service hosted by NovaNAS Cloud.
+                                    You can create up to {dynDnsInfo.max_subdomains} subdomain{dynDnsInfo.max_subdomains !== 1 ? 's' : ''} per IP address.
+                                </Text>
+                            </Alert>
+                        )}
+
+                        {modalError && (
+                            <Alert color="red" variant="light">
+                                {modalError}
                             </Alert>
                         )}
 
@@ -363,10 +407,30 @@ export function DynDnsTab() {
                             label="Subdomain"
                             placeholder="yourdomain"
                             value={formData.subdomain}
-                            onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
+                            onChange={handleSubdomainChange}
+                            error={subdomainError}
                             required
-                            rightSection={<span style={{ color: '#8b8b8b', fontSize: '14px' }}>.novanas.org</span>}
-                            rightSectionWidth={90}
+                            rightSection={
+                                <Group gap={0} wrap="nowrap">
+                                    <Box
+                                        style={{
+                                            width: '1px',
+                                            height: '20px',
+                                            backgroundColor: theme.colors.dark[4],
+                                            marginRight: '8px',
+                                        }}
+                                    />
+                                    <Text
+                                        size="sm"
+                                        fw={600}
+                                        c={theme.primaryColor}
+                                        style={{ whiteSpace: 'nowrap' }}
+                                    >
+                                        .{formData.provider === 'novanas' ? 'novanas' : 'duckdns'}.org
+                                    </Text>
+                                </Group>
+                            }
+                            rightSectionWidth={130}
                         />
 
                         <Switch
@@ -391,8 +455,9 @@ export function DynDnsTab() {
             <Modal
                 opened={!!deleteConfirm}
                 onClose={() => setDeleteConfirm(null)}
-                title="Delete Configuration"
+                title={<Text fw={600}>Delete Configuration</Text>}
                 size="sm"
+                centered
             >
                 <Text c="dimmed" mb="lg">
                     Are you sure you want to delete this DynDNS configuration? This action cannot be undone.

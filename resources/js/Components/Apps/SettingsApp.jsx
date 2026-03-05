@@ -7,13 +7,16 @@ import {
     IconUser,
     IconShield,
     IconBell,
+    IconCloud,
 } from '@tabler/icons-react';
 import { GeneralTab } from './Settings/GeneralTab';
 import { NetworkTab } from './Settings/NetworkTab';
+import { DynDnsTab } from './Settings/DynDnsTab';
 
 const tabs = [
     { id: 'general', label: 'General', icon: IconSettings },
     { id: 'network', label: 'Network', icon: IconNetwork },
+    { id: 'dyndns', label: 'DynDNS', icon: IconCloud },
     { id: 'appearance', label: 'Appearance', icon: IconPalette },
     { id: 'account', label: 'Account', icon: IconUser },
     { id: 'security', label: 'Security', icon: IconShield },
@@ -30,6 +33,8 @@ export function SettingsAppContent() {
                 return <GeneralTab />;
             case 'network':
                 return <NetworkTab />;
+            case 'dyndns':
+                return <DynDnsTab />;
             case 'appearance':
                 return <Text c="dimmed">Appearance settings will appear here.</Text>;
             case 'account':

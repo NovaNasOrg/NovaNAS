@@ -7,6 +7,7 @@ use App\Http\Controllers\SystemController;
 use App\Http\Controllers\WizardController;
 use App\Http\Controllers\DesktopIconController;
 use App\Http\Controllers\NetworkController;
+use App\Http\Controllers\DynDnsController;
 
 // Wizard routes (accessible without authentication when no users exist)
 Route::get('/wizard', [WizardController::class, 'index']);
@@ -40,6 +41,15 @@ Route::group(['middleware' => 'auth'], function () {
         Route::put('/api/desktop-icons/order', [DesktopIconController::class, 'updateOrder']);
         Route::put('/api/desktop-icons/visibility', [DesktopIconController::class, 'toggleVisibility']);
         Route::get('/api/desktop-icons/orders', [DesktopIconController::class, 'orders']);
+
+        // DynDNS routes
+        Route::get('/api/dyndns/configs', [DynDnsController::class, 'index']);
+        Route::post('/api/dyndns/configs', [DynDnsController::class, 'store']);
+        Route::put('/api/dyndns/configs/{id}', [DynDnsController::class, 'update']);
+        Route::delete('/api/dyndns/configs/{id}', [DynDnsController::class, 'destroy']);
+        Route::post('/api/dyndns/configs/{id}/update', [DynDnsController::class, 'updateNow']);
+        Route::post('/api/dyndns/update-all', [DynDnsController::class, 'updateAll']);
+        Route::get('/api/dyndns/provider-fields', [DynDnsController::class, 'getProviderFields']);
     });
 
     // API routes - exclude Inertia middleware

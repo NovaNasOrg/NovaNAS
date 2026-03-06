@@ -8,6 +8,7 @@ use App\Http\Controllers\WizardController;
 use App\Http\Controllers\DesktopIconController;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\DynDnsController;
+use App\Http\Controllers\UpnpController;
 
 // Wizard routes (accessible without authentication when no users exist)
 Route::get('/wizard', [WizardController::class, 'index']);
@@ -51,6 +52,15 @@ Route::group(['middleware' => 'auth'], function () {
         Route::post('/api/dyndns/configs/{id}/update', [DynDnsController::class, 'updateNow']);
         Route::post('/api/dyndns/update-all', [DynDnsController::class, 'updateAll']);
         Route::get('/api/dyndns/provider-fields', [DynDnsController::class, 'getProviderFields']);
+
+        // UPNP routes
+        Route::get('/api/upnp/rules', [UpnpController::class, 'index']);
+        Route::post('/api/upnp/rules', [UpnpController::class, 'store']);
+        Route::put('/api/upnp/rules/{id}', [UpnpController::class, 'update']);
+        Route::delete('/api/upnp/rules/{id}', [UpnpController::class, 'destroy']);
+        Route::post('/api/upnp/publish-all', [UpnpController::class, 'publishAll']);
+        Route::get('/api/upnp/discover', [UpnpController::class, 'discover']);
+        Route::get('/api/upnp/interfaces', [UpnpController::class, 'getInterfaces']);
     });
 
     // API routes - exclude Inertia middleware

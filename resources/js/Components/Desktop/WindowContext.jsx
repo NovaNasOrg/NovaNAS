@@ -36,7 +36,7 @@ export function WindowProvider({ children }) {
             icon,
             x: 100 + windows.length * 30,
             y: 50 + windows.length * 30,
-            width: 800,
+            width: 1000,
             height: 600,
             minimized: false,
             maximized: false,

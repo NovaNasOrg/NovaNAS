@@ -37,7 +37,7 @@ return [
 
     'novanas' => [
         'api_url' => env('NOVANAS_API_URL', 'https://api.novanas.org/api'),
-        'base_domain' => env('NOVANAS_BASE_DOMAIN', 'novanas.org'),
+        'base_domain' => env('NOVANAS_BASE_DOMAIN', 'mynovanas.com'),
     ],
 
 ];

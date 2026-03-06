@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\DynDnsConfig;
+use App\Models\UpnpRule;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -21,15 +22,42 @@ Schedule::call(function () {
     foreach ($configs as $config) {
         // Skip if never updated or if enough time has passed since last update
         if (!$config->last_updated_at) {
-            // First time update
-            dispatch(new \App\Jobs\DynDnsUpdateJob($config->id));
+            // First time update - run synchronously
+            dispatch_sync(new \App\Jobs\DynDnsUpdateJob($config->id));
             continue;
         }
 
         $nextUpdate = $config->last_updated_at->addMinutes($config->interval_minutes);
 
         if (now()->gte($nextUpdate)) {
-            dispatch(new \App\Jobs\DynDnsUpdateJob($config->id));
+            // Run synchronously within the schedule
+            dispatch_sync(new \App\Jobs\DynDnsUpdateJob($config->id));
         }
     }
 })->everyMinute()->name('dyndns-schedule-check');
+
+/**
+ * UPNP Port Mapping Renewal
+ *
+ * Renews UPNP port mappings every 30 minutes to keep them active.
+ * UPNP mappings are temporary leases that need periodic renewal.
+ */
+Schedule::call(function () {
+    $rules = UpnpRule::enabled()->get();
+
+    foreach ($rules as $rule) {
+        // Skip if never renewed or if enough time has passed since last renewal
+        if (!$rule->last_renewed_at) {
+            // First time publish - run synchronously
+            dispatch_sync(new \App\Jobs\UpnpRenewJob($rule->id));
+            continue;
+        }
+
+        $nextRenewal = $rule->last_renewed_at->addMinutes(30);
+
+        if (now()->gte($nextRenewal)) {
+            // Run synchronously within the schedule
+            dispatch_sync(new \App\Jobs\UpnpRenewJob($rule->id));
+        }
+    }
+})->everyMinute()->name('upnp-renewal-check');

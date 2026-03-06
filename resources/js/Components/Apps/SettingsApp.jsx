@@ -8,14 +8,17 @@ import {
     IconShield,
     IconBell,
     IconCloud,
+    IconWifi,
 } from '@tabler/icons-react';
 import { GeneralTab } from './Settings/GeneralTab';
 import { NetworkTab } from './Settings/NetworkTab';
 import { DynDnsTab } from './Settings/DynDnsTab';
+import { UpnpTab } from './Settings/UpnpTab';
 
 const tabs = [
     { id: 'general', label: 'General', icon: IconSettings },
     { id: 'network', label: 'Network', icon: IconNetwork },
+    { id: 'upnp', label: 'UPNP', icon: IconWifi },
     { id: 'dyndns', label: 'DynDNS', icon: IconCloud },
     { id: 'appearance', label: 'Appearance', icon: IconPalette },
     { id: 'account', label: 'Account', icon: IconUser },
@@ -33,6 +36,8 @@ export function SettingsAppContent() {
                 return <GeneralTab />;
             case 'network':
                 return <NetworkTab />;
+            case 'upnp':
+                return <UpnpTab />;
             case 'dyndns':
                 return <DynDnsTab />;
             case 'appearance':

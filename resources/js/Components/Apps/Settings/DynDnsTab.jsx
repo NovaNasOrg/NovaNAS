@@ -24,6 +24,8 @@ import {
     IconEdit,
     IconCloud,
     IconInfoCircle,
+    IconCopy,
+    IconCheck,
 } from '@tabler/icons-react';
 
 export function DynDnsTab() {
@@ -48,6 +50,7 @@ export function DynDnsTab() {
     const [modalError, setModalError] = useState(null);
     const [dynDnsInfo, setDynDnsInfo] = useState({ max_subdomains: 0, domain: '' });
     const [subdomainError, setSubdomainError] = useState(null);
+    const [copiedId, setCopiedId] = useState(null);
 
     useEffect(() => {
         fetchConfigs();
@@ -107,8 +110,6 @@ export function DynDnsTab() {
             if (editingConfig) {
                 url = '/api/dyndns/configs/' + editingConfig.id;
             }
-
-            console.log('Submitting to:', url, 'method:', method, 'editingConfig:', editingConfig);
 
             const response = await fetch(url, {
                 method,
@@ -186,6 +187,43 @@ export function DynDnsTab() {
             interval_minutes: 5,
             is_enabled: true,
         });
+    };
+
+    const handleCopyDomain = (config) => {
+        const domain = config.full_domain;
+
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(domain).then(() => {
+                setCopiedId(config.id);
+                setTimeout(() => setCopiedId(null), 2000);
+            }).catch(() => {
+                // Fallback to textarea method
+                fallbackCopy(domain, config.id);
+            });
+        } else {
+            // Fallback for older browsers or non-secure contexts
+            fallbackCopy(domain, config.id);
+        }
+    };
+
+    const fallbackCopy = (text, id) => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+            document.execCommand('copy');
+            setCopiedId(id);
+            setTimeout(() => setCopiedId(null), 2000);
+        } catch (err) {
+            console.error('Copy failed:', err);
+        }
+
+        document.body.removeChild(textarea);
     };
 
     const openCreateModal = () => {
@@ -322,11 +360,38 @@ export function DynDnsTab() {
                                                 {config.is_enabled ? 'Enabled' : 'Disabled'}
                                             </Badge>
                                         </Group>
-                                        <Text size="sm" c="dimmed">
-                                            {config.full_domain} • {config.provider_display_name}
-                                        </Text>
+                                        <Group gap="xs">
+                                            <Box
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px',
+                                                    padding: '6px 12px',
+                                                    borderRadius: '8px',
+                                                    background: `linear-gradient(135deg, ${theme.colors.blue[7]} 0%, ${theme.colors.blue[5]} 100%)`,
+                                                    boxShadow: `0 2px 8px ${theme.colors.blue[8]}40`,
+                                                    marginTop: '4px',
+                                                    marginBottom: '4px',
+                                                }}
+                                            >
+                                                <Text size="sm" fw={600} c="white" style={{ letterSpacing: '0.3px' }}>
+                                                    {config.full_domain}
+                                                </Text>
+                                                <ActionIcon
+                                                    variant="white"
+                                                    color="blue"
+                                                    size="xs"
+                                                    radius="xl"
+                                                    onClick={() => handleCopyDomain(config)}
+                                                    title="Copy domain"
+                                                    style={{ opacity: 0.9 }}
+                                                >
+                                                    {copiedId === config.id ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                                                </ActionIcon>
+                                            </Box>
+                                        </Group>
                                         <Text size="xs" c="dimmed">
-                                            Updates every {config.interval_minutes} minute{config.interval_minutes !== 1 ? 's' : ''}
+                                            {config.provider_display_name} • Updates every {config.interval_minutes} minute{config.interval_minutes !== 1 ? 's' : ''}
                                             {config.last_updated_at && (
                                                 <> • Last updated: {new Date(config.last_updated_at).toLocaleString()}</>
                                             )}
@@ -426,7 +491,7 @@ export function DynDnsTab() {
                                         c={theme.primaryColor}
                                         style={{ whiteSpace: 'nowrap' }}
                                     >
-                                        .{formData.provider === 'novanas' ? 'novanas' : 'duckdns'}.org
+                                        .{formData.provider === 'novanas' ? dynDnsInfo.domain : 'duckdns.org'}
                                     </Text>
                                 </Group>
                             }

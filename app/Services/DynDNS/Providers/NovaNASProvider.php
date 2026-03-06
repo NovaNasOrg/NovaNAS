@@ -36,7 +36,7 @@ class NovaNASProvider implements DynDNSProviderInterface
      */
     public function getRequiredFields(): array
     {
-        $baseDomain = config('services.novanas.base_domain', 'novanas.org');
+        $baseDomain = config('services.novanas.base_domain');
 
         return [
             [
@@ -54,7 +54,7 @@ class NovaNASProvider implements DynDNSProviderInterface
      */
     public function getBaseDomain(): string
     {
-        return config('services.novanas.base_domain', 'novanas.org');
+        return config('services.novanas.base_domain');
     }
 
     /**

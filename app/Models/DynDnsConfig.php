@@ -77,7 +77,7 @@ class DynDnsConfig extends Model
      */
     protected function getNovaBaseDomain(): string
     {
-        return config('services.novanas.base_domain', 'novanas.org');
+        return config('services.novanas.base_domain');
     }
 
     /**

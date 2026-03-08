@@ -187,9 +187,16 @@ class UpnpController extends Controller
             preg_match('/ExternalIPAddress = (\S+)/', $output, $externalIpMatch);
             $externalIp = $externalIpMatch[1] ?? '';
 
-            // Extract LAN IP
-            preg_match('/Local LAN ip address : (\S+)/', $output, $lanIpMatch);
-            $lanIp = $lanIpMatch[1] ?? '';
+            // Extract router's LAN IP from the UPNP device description URL
+            // Format: desc: http://192.168.0.1:1900/nmrpq/rootDesc.xml
+            preg_match('/desc: http:\/\/(\S+):/', $output, $routerIpMatch);
+            $lanIp = $routerIpMatch[1] ?? '';
+
+            // Fallback to Local LAN ip address if router IP not found
+            if (empty($lanIp)) {
+                preg_match('/Local LAN ip address : (\S+)/', $output, $lanIpMatch);
+                $lanIp = $lanIpMatch[1] ?? '';
+            }
 
             return response()->json([
                 'found' => true,

@@ -9,6 +9,7 @@ use App\Http\Controllers\DesktopIconController;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\DynDnsController;
 use App\Http\Controllers\UpnpController;
+use App\Http\Controllers\FirewallController;
 
 // Wizard routes (accessible without authentication when no users exist)
 Route::get('/wizard', [WizardController::class, 'index']);
@@ -61,6 +62,19 @@ Route::group(['middleware' => 'auth'], function () {
         Route::post('/api/upnp/publish-all', [UpnpController::class, 'publishAll']);
         Route::get('/api/upnp/discover', [UpnpController::class, 'discover']);
         Route::get('/api/upnp/interfaces', [UpnpController::class, 'getInterfaces']);
+
+        // Firewall routes
+        Route::get('/api/firewall/status', [FirewallController::class, 'status']);
+        Route::get('/api/firewall/rules', [FirewallController::class, 'rules']);
+        Route::get('/api/firewall/default-policies', [FirewallController::class, 'defaultPolicies']);
+        Route::post('/api/firewall/enable', [FirewallController::class, 'enable']);
+        Route::post('/api/firewall/disable', [FirewallController::class, 'disable']);
+        Route::post('/api/firewall/rules', [FirewallController::class, 'store']);
+        Route::put('/api/firewall/rules/reorder', [FirewallController::class, 'reorder']);
+        Route::put('/api/firewall/rules/{id}', [FirewallController::class, 'update']);
+        Route::delete('/api/firewall/rules/{id}', [FirewallController::class, 'destroy']);
+        Route::put('/api/firewall/default-policies', [FirewallController::class, 'setDefaultPolicy']);
+        Route::get('/api/firewall/interfaces', [FirewallController::class, 'interfaces']);
     });
 
     // API routes - exclude Inertia middleware

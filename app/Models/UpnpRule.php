@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Firewall\UfwService;
+use App\Services\NetworkService;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -73,10 +75,61 @@ class UpnpRule extends Model
     }
 
     /**
+     * Ensure UPnP discovery port (UDP 1900) is allowed in the firewall.
+     * This is required for miniupnpc to discover IGD devices on the network.
+     */
+    protected function ensureUpnpPortAllowed(): void
+    {
+        $ufwService = new UfwService();
+        $networkService = new NetworkService();
+
+        // Get the gateway IP (router IP)
+        $gatewayIp = $networkService->getGatewayIp();
+
+        if (!$gatewayIp) {
+            \Illuminate\Support\Facades\Log::warning("UpnpRenewJob: Could not determine gateway IP");
+
+            return;
+        }
+
+        // Check if there's already a rule allowing all traffic from the gateway
+        $rules = $ufwService->getRules();
+        $gatewayRuleExists = false;
+
+        foreach ($rules as $rule) {
+            // Check for a rule that allows traffic from the gateway IP
+            if (
+                $rule['from'] === $gatewayIp &&
+                strtoupper($rule['action']) === 'ALLOW'
+            ) {
+                $gatewayRuleExists = true;
+
+                break;
+            }
+        }
+
+        if (!$gatewayRuleExists) {
+            \Illuminate\Support\Facades\Log::info("UpnpRenewJob: Adding UFW rule to allow all traffic from gateway {$gatewayIp}");
+
+            // Allow all traffic from the gateway IP (router) to handle UPnP responses on any port
+            $ufwService->addRule([
+                'action' => 'allow',
+                'direction' => 'in',
+                'from' => $gatewayIp,
+                'to' => 'any',
+                'comment' => 'UPnP router (allows responses on any port)',
+            ]);
+        }
+    }
+
+    /**
      * Publish this rule to the router via UPNP.
      */
     public function publish(): array
     {
+        // Ensure UPnP discovery port (UDP 1900) is allowed before attempting UPnP
+        $this->ensureUpnpPortAllowed();
+
         $internalIp = $this->getInternalIp();
 
         if (!$internalIp) {
@@ -89,15 +142,22 @@ class UpnpRule extends Model
         // Use miniupnpc with sudo to add port mapping
         // upnpc -a <internal_ip> <internal_port> <external_port> <protocol> [duration]
         // Duration is in seconds (3600 = 1 hour) - renewal happens every 30 minutes
+        // Use -p to specify local port 12350 (must be allowed in firewall for router responses)
         $command = sprintf(
-            'sudo upnpc -a %s %d %d %s 3600 2>&1',
+            'sudo upnpc -a %s %d %d %s -p 12350 3600 2>&1',
             $internalIp,
             $this->internal_port,
             $this->external_port,
             $this->protocol
         );
 
+        // Debug: Log the exact command being executed
+        \Illuminate\Support\Facades\Log::info("UpnpRenewJob: Executing command: {$command}");
+
         $output = shell_exec($command);
+
+        // Debug: Log the raw output
+        \Illuminate\Support\Facades\Log::info("UpnpRenewJob: Command output: {$output}");
 
         if (str_contains($output, 'is redirected to')) {
             $this->update(['last_renewed_at' => now()]);

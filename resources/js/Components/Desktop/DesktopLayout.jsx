@@ -6,6 +6,7 @@ import { DesktopIcons } from './DesktopIcons';
 import { DraggableWindow } from './DraggableWindow';
 import { SampleAppContent } from '../Apps/SampleApp';
 import { SettingsAppContent } from '../Apps/SettingsApp';
+import { FirewallAppContent } from '../Apps/FirewallApp';
 import { useCallback, useState } from 'react';
 
 const APP_COMPONENTS = {
@@ -15,6 +16,7 @@ const APP_COMPONENTS = {
     docker: () => <SampleAppContent title="Docker" emoji="🐳" />,
     monitor: () => <SampleAppContent title="Monitor" emoji="📊" />,
     storage: () => <SampleAppContent title="Storage" emoji="💾" />,
+    firewall: () => <FirewallAppContent />,
 };
 
 function DesktopContent({ version, desktopApps = [], userIconOrders = {} }) {

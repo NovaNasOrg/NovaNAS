@@ -7,6 +7,7 @@ import { DraggableWindow } from './DraggableWindow';
 import { SampleAppContent } from '../Apps/SampleApp';
 import { SettingsAppContent } from '../Apps/SettingsApp';
 import { FirewallAppContent } from '../Apps/FirewallApp';
+import { StorageAppContent } from '../Apps/StorageApp';
 import { useCallback, useState } from 'react';
 
 const APP_COMPONENTS = {
@@ -15,7 +16,7 @@ const APP_COMPONENTS = {
     terminal: () => <SampleAppContent title="Terminal" emoji="💻" />,
     docker: () => <SampleAppContent title="Docker" emoji="🐳" />,
     monitor: () => <SampleAppContent title="Monitor" emoji="📊" />,
-    storage: () => <SampleAppContent title="Storage" emoji="💾" />,
+    storage: () => <StorageAppContent />,
     firewall: () => <FirewallAppContent />,
 };
 

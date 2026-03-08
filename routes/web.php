@@ -10,6 +10,7 @@ use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\DynDnsController;
 use App\Http\Controllers\UpnpController;
 use App\Http\Controllers\FirewallController;
+use App\Http\Controllers\StorageController;
 
 // Wizard routes (accessible without authentication when no users exist)
 Route::get('/wizard', [WizardController::class, 'index']);
@@ -75,6 +76,12 @@ Route::group(['middleware' => 'auth'], function () {
         Route::delete('/api/firewall/rules/{id}', [FirewallController::class, 'destroy']);
         Route::put('/api/firewall/default-policies', [FirewallController::class, 'setDefaultPolicy']);
         Route::get('/api/firewall/interfaces', [FirewallController::class, 'interfaces']);
+
+        // Storage routes
+        Route::get('/api/storage/disks', [StorageController::class, 'disks']);
+        Route::get('/api/storage/disks/{device}/capacity', [StorageController::class, 'capacity']);
+        Route::get('/api/storage/pools', [StorageController::class, 'pools']);
+        Route::get('/api/storage/pools/{pool}', [StorageController::class, 'pool']);
     });
 
     // API routes - exclude Inertia middleware

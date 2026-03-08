@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Text, Badge, Group, LoadingOverlay, ThemeIcon, Table } from '@mantine/core';
-import { IconRefresh, IconDisc, IconUsb, IconLock } from '@tabler/icons-react';
+import { IconRefresh, IconDisc, IconUsb, IconLock, IconEngine } from '@tabler/icons-react';
 import { useMantineTheme } from '@mantine/core';
 
 function formatBytes(bytes) {
@@ -55,13 +55,25 @@ function DiskCard({ disk }) {
 
             {/* Type */}
             <Box style={{ flex: '0 0 160px' }}>
-                <Badge
-                    size="lg"
-                    color={isHDD ? 'orange' : 'blue'}
-                    variant="light"
-                >
-                    {isHDD ? 'HDD' : 'SSD'}
-                </Badge>
+                <Group gap="xs">
+                    <Badge
+                        size="lg"
+                        color={isHDD ? 'orange' : 'blue'}
+                        variant="light"
+                    >
+                        {isHDD ? 'HDD' : 'SSD'}
+                    </Badge>
+                    {disk.isSystem && (
+                        <Badge
+                            size="sm"
+                            color="green"
+                            variant="light"
+                            leftSection={<IconEngine size={12} />}
+                        >
+                            System
+                        </Badge>
+                    )}
+                </Group>
                 <Text size="xs" c="dimmed" mt={4}>Type</Text>
             </Box>
 

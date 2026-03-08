@@ -23,7 +23,8 @@ interface StorageInterface
      *     serial: string|null,
      *     rotational: bool,
      *     readonly: bool,
-     *     removable: bool
+     *     removable: bool,
+     *     isSystem: bool
      * }>
      */
     public function listDisks(): array;

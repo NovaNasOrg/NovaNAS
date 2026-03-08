@@ -30,7 +30,7 @@ class StorageService
      */
     public function listDisks(): array
     {
-        $result = Process::run('lsblk -b -o NAME,TYPE,SIZE,VENDOR,MODEL,SERIAL,ROTA,RO,RM --json');
+        $result = Process::run('lsblk -b -o NAME,TYPE,SIZE,VENDOR,MODEL,SERIAL,ROTA,RO,RM,MOUNTPOINT --json');
 
         if ($result->failed()) {
             return [];
@@ -41,6 +41,9 @@ class StorageService
         if (!$data || !isset($data['blockdevices'])) {
             return [];
         }
+
+        // Get system disk info (disk containing root or boot)
+        $systemDisk = $this->getSystemDisk();
 
         $disks = [];
 
@@ -60,10 +63,57 @@ class StorageService
                 'rotational' => (bool) ($device['rota'] ?? false),
                 'readonly' => (bool) ($device['ro'] ?? false),
                 'removable' => (bool) ($device['rm'] ?? false),
+                'isSystem' => $this->isSystemDisk($device['name'], $systemDisk),
             ];
         }
 
         return $disks;
+    }
+
+    /**
+     * Detect which disk is the system disk.
+     */
+    protected function getSystemDisk(): ?string
+    {
+        // Get the disk containing / (root filesystem)
+        $result = Process::run('lsblk -no PKNAME /');
+        if ($result->successful() && trim($result->output())) {
+            return trim($result->output());
+        }
+
+        // Fallback: check /boot
+        $result = Process::run('lsblk -no PKNAME /boot 2>/dev/null');
+        if ($result->successful() && trim($result->output())) {
+            return trim($result->output());
+        }
+
+        // Fallback: parse full lsblk output to find disk with / mountpoint
+        $result = Process::run('lsblk -o NAME,TYPE,MOUNTPOINT --json');
+        if ($result->successful()) {
+            $data = json_decode($result->output(), true);
+            if ($data && isset($data['blockdevices'])) {
+                foreach ($data['blockdevices'] as $device) {
+                    if (($device['type'] ?? '') === 'disk' && isset($device['children'])) {
+                        foreach ($device['children'] as $partition) {
+                            $mountpoint = $partition['mountpoint'] ?? null;
+                            if ($mountpoint === '/' || $mountpoint === '/boot/efi' || $mountpoint === '/boot') {
+                                return $device['name'];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a specific disk is the system disk.
+     */
+    protected function isSystemDisk(string $diskName, ?string $systemDisk): bool
+    {
+        return $systemDisk === $diskName;
     }
 
     /**

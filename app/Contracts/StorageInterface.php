@@ -5,45 +5,24 @@ namespace App\Contracts;
 /**
  * Interface for storage backend implementations.
  *
- * This interface defines the contract that storage backends (ZFS, LVM, etc.)
- * must implement. The StorageService will use these methods to interact
- * with different storage systems.
+ * This interface defines the contract that storage backends (ZFS, EXT4, etc.)
+ * must implement. Each filesystem type has its own implementation class.
+ *
+ * Note: General storage operations (like listing physical disks) are handled
+ * by StorageService directly, not through this interface.
  */
 interface StorageInterface
 {
     /**
-     * List all available disks in the system.
-     *
-     * @return array<int, array{
-     *     name: string,
-     *     type: string,
-     *     size: int,
-     *     vendor: string|null,
-     *     model: string|null,
-     *     serial: string|null,
-     *     rotational: bool,
-     *     readonly: bool,
-     *     removable: bool,
-     *     isSystem: bool
-     * }>
+     * Check if the storage backend is available on the system.
      */
-    public function listDisks(): array;
+    public function isAvailable(): bool;
 
     /**
-     * Get the capacity information for a specific disk.
+     * List all storage pools/volumes managed by this backend.
      *
-     * @param string $device The device name (e.g., 'sda')
-     * @return array{
-     *     total: int,
-     *     used: int,
-     *     available: int,
-     *     percentage: float
-     * }|null
-     */
-    public function getCapacity(string $device): ?array;
-
-    /**
-     * List all storage pools.
+     * For ZFS, this returns pools.
+     * For EXT4, this would return mounted filesystems.
      *
      * @return array<int, array{
      *     name: string,
@@ -57,10 +36,27 @@ interface StorageInterface
     public function listPools(): array;
 
     /**
-     * Get detailed information about a specific pool.
+     * Get detailed information about a specific pool/volume.
      *
-     * @param string $pool The pool name
+     * @param string $pool The pool/volume name
      * @return array|null
      */
     public function getPoolInfo(string $pool): ?array;
+
+    /**
+     * Get the mountpoint for a storage pool or dataset.
+     */
+    public function getMountpoint(string $poolOrDataset): ?string;
+
+    /**
+     * Get the health status of a pool.
+     */
+    public function getHealth(string $pool): ?string;
+
+    /**
+     * Get properties for a pool or dataset.
+     *
+     * @return array<string, string>
+     */
+    public function getProperties(string $poolOrDataset): array;
 }

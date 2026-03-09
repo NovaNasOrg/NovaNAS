@@ -8,12 +8,12 @@ import {
 } from '@tabler/icons-react';
 import { DisksTab } from './Storage/DisksTab';
 import { HealthTab } from './Storage/HealthTab';
+import { PoolsTab } from './Storage/PoolsTab';
 
 const tabs = [
     { id: 'disks', label: 'Disks', icon: IconDisc },
     { id: 'health', label: 'Health', icon: IconHeart },
     { id: 'pools', label: 'Pools', icon: IconStack2 },
-    { id: 'volumes', label: 'Volumes', icon: IconServer },
 ];
 
 export function StorageAppContent() {
@@ -27,9 +27,7 @@ export function StorageAppContent() {
             case 'health':
                 return <HealthTab />;
             case 'pools':
-                return <Text c="dimmed">Storage pools will appear here.</Text>;
-            case 'volumes':
-                return <Text c="dimmed">Volumes will appear here.</Text>;
+                return <PoolsTab />;
             default:
                 return <DisksTab />;
         }

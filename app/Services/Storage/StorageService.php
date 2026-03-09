@@ -2,17 +2,99 @@
 
 namespace App\Services\Storage;
 
+use App\Contracts\StorageInterface;
 use Illuminate\Support\Facades\Process;
 
 /**
- * Storage service for managing disks and pools.
+ * Storage service for managing disks and coordinating storage backends.
  *
- * This service provides methods to interact with system storage,
- * currently using lsblk for disk listing. Can be extended to support
- * ZFS, LVM, and other storage backends.
+ * This service provides general, filesystem-independent operations for
+ * listing physical disks and coordinating between different storage backends
+ * like ZFS, EXT4, LVM, etc.
+ *
+ * Each filesystem type has its own implementation class that implements
+ * StorageInterface (e.g., ZfsStorage, Ext4Storage).
  */
 class StorageService
 {
+    /**
+     * @var array<string, StorageInterface>
+     */
+    protected array $backends = [];
+
+    /**
+     * Create a new StorageService instance.
+     */
+    public function __construct()
+    {
+        // Register available storage backends
+        $this->registerBackend('zfs', new ZfsStorage());
+    }
+
+    /**
+     * Register a storage backend.
+     */
+    public function registerBackend(string $name, StorageInterface $backend): self
+    {
+        $this->backends[$name] = $backend;
+
+        return $this;
+    }
+
+    /**
+     * Get a storage backend by name.
+     */
+    public function backend(string $name): ?StorageInterface
+    {
+        return $this->backends[$name] ?? null;
+    }
+
+    /**
+     * Get all available storage backends.
+     *
+     * @return array<string, StorageInterface>
+     */
+    public function getBackends(): array
+    {
+        return $this->backends;
+    }
+
+    /**
+     * Get the default pool backend (ZFS if available).
+     */
+    public function getPoolBackend(): ?StorageInterface
+    {
+        // Prefer ZFS if available
+        if (isset($this->backends['zfs']) && $this->backends['zfs']->isAvailable()) {
+            return $this->backends['zfs'];
+        }
+
+        // Fallback to first available backend
+        foreach ($this->backends as $backend) {
+            if ($backend->isAvailable()) {
+                return $backend;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * List all available storage backends that are available on the system.
+     *
+     * @return array<string, bool>
+     */
+    public function getAvailableBackends(): array
+    {
+        $available = [];
+
+        foreach ($this->backends as $name => $backend) {
+            $available[$name] = $backend->isAvailable();
+        }
+
+        return $available;
+    }
+
     /**
      * List all available disks in the system using lsblk.
      *
@@ -161,7 +243,7 @@ class StorageService
     }
 
     /**
-     * List all ZFS pools (if ZFS is available).
+     * List all storage pools using the default pool backend.
      *
      * @return array<int, array{
      *     name: string,
@@ -174,78 +256,49 @@ class StorageService
      */
     public function listPools(): array
     {
-        // Check if zfs command is available
-        $checkResult = Process::run('which zfs');
+        $backend = $this->getPoolBackend();
 
-        if ($checkResult->failed()) {
+        if ($backend === null) {
             return [];
         }
 
-        $result = Process::run('zpool list -Hp -o name,size,allocated,free,health,altroot');
-
-        if ($result->failed()) {
-            return [];
-        }
-
-        $pools = [];
-        $lines = explode("\n", trim($result->output()));
-
-        foreach ($lines as $line) {
-            if (empty(trim($line))) {
-                continue;
-            }
-
-            $parts = preg_split('/\s+/', $line);
-
-            if (count($parts) >= 5) {
-                $pools[] = [
-                    'name' => $parts[0],
-                    'size' => (int) $parts[1],
-                    'allocated' => (int) $parts[2],
-                    'free' => (int) $parts[3],
-                    'health' => $parts[4],
-                    'mountpoint' => $parts[5] === '-' ? null : $parts[5],
-                ];
-            }
-        }
-
-        return $pools;
+        return $backend->listPools();
     }
 
     /**
-     * Get detailed information about a specific ZFS pool.
+     * Get detailed information about a specific pool.
      *
      * @param string $pool The pool name
      * @return array|null
      */
     public function getPoolInfo(string $pool): ?array
     {
-        $result = Process::run("zpool list -Hp -o name,size,allocated,free,health,cap,altroot,allocated {$pool}");
+        $backend = $this->getPoolBackend();
 
-        if ($result->failed()) {
+        if ($backend === null) {
             return null;
         }
 
-        $lines = explode("\n", trim($result->output()));
+        return $backend->getPoolInfo($pool);
+    }
 
-        if (empty($lines[0])) {
-            return null;
+    /**
+     * Check if ZFS is available on the system.
+     */
+    public function isZfsAvailable(): bool
+    {
+        return isset($this->backends['zfs']) && $this->backends['zfs']->isAvailable();
+    }
+
+    /**
+     * Get ZFS-specific operations (if ZFS is available).
+     */
+    public function zfs(): ?ZfsStorage
+    {
+        if (isset($this->backends['zfs']) && $this->backends['zfs']->isAvailable()) {
+            return $this->backends['zfs'];
         }
 
-        $parts = preg_split('/\s+/', $lines[0]);
-
-        if (count($parts) < 6) {
-            return null;
-        }
-
-        return [
-            'name' => $parts[0],
-            'size' => (int) $parts[1],
-            'allocated' => (int) $parts[2],
-            'free' => (int) $parts[3],
-            'health' => $parts[4],
-            'capacity' => (int) $parts[5],
-            'mountpoint' => $parts[6] === '-' ? null : $parts[6],
-        ];
+        return null;
     }
 }

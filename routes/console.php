@@ -2,6 +2,7 @@
 
 use App\Models\DynDnsConfig;
 use App\Models\UpnpRule;
+use App\Services\Storage\SmartService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -61,3 +62,13 @@ Schedule::call(function () {
         }
     }
 })->everyMinute()->name('upnp-renewal-check');
+
+/**
+ * SMART Disk Tests
+ *
+ * Runs weekly SMART short tests on all non-system disks every Sunday at 2:00 AM.
+ */
+Schedule::call(function () {
+    $smartService = new SmartService();
+    $smartService->runTestsOnAllDisks('short');
+})->weekly()->at('02:00')->name('smart-weekly-test');

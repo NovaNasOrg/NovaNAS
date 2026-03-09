@@ -11,6 +11,7 @@ use App\Http\Controllers\DynDnsController;
 use App\Http\Controllers\UpnpController;
 use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\StorageController;
+use App\Http\Controllers\SmartController;
 
 // Wizard routes (accessible without authentication when no users exist)
 Route::get('/wizard', [WizardController::class, 'index']);
@@ -82,6 +83,14 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('/api/storage/disks/{device}/capacity', [StorageController::class, 'capacity']);
         Route::get('/api/storage/pools', [StorageController::class, 'pools']);
         Route::get('/api/storage/pools/{pool}', [StorageController::class, 'pool']);
+
+        // SMART routes
+        Route::get('/api/storage/smart/health', [SmartController::class, 'health']);
+        Route::get('/api/storage/smart/{device}/health', [SmartController::class, 'healthStatus']);
+        Route::get('/api/storage/smart/{device}/tests', [SmartController::class, 'testResults']);
+        Route::get('/api/storage/smart/{device}/info', [SmartController::class, 'detailedInfo']);
+        Route::post('/api/storage/smart/{device}/test', [SmartController::class, 'startTest']);
+        Route::post('/api/storage/smart/scan-all', [SmartController::class, 'scanAll']);
     });
 
     // API routes - exclude Inertia middleware

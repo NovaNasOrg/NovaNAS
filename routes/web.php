@@ -17,6 +17,8 @@ use App\Http\Controllers\SmartController;
 Route::get('/wizard', [WizardController::class, 'index']);
 Route::get('/wizard/account', [WizardController::class, 'account']);
 Route::post('/wizard/account', [WizardController::class, 'storeAccount']);
+Route::get('/wizard/bind-user', [WizardController::class, 'bindUser']);
+Route::post('/wizard/bind-user', [WizardController::class, 'storeBindUser']);
 Route::get('/wizard/skip', [WizardController::class, 'skip']);
 
 Route::get('/login', [AuthController::class, 'login'])->name('login');
@@ -83,6 +85,9 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('/api/storage/disks/{device}/capacity', [StorageController::class, 'capacity']);
         Route::get('/api/storage/pools', [StorageController::class, 'pools']);
         Route::get('/api/storage/pools/{pool}', [StorageController::class, 'pool']);
+        Route::get('/api/storage/pools/{pool}/directories', [StorageController::class, 'poolDirectories']);
+        Route::get('/api/storage/settings', [StorageController::class, 'getSettings']);
+        Route::post('/api/storage/settings', [StorageController::class, 'updateSettings']);
 
         // SMART routes
         Route::get('/api/storage/smart/health', [SmartController::class, 'health']);

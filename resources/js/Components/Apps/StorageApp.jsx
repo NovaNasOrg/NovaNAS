@@ -5,15 +5,18 @@ import {
     IconServer,
     IconStack2,
     IconHeart,
+    IconApps,
 } from '@tabler/icons-react';
 import { DisksTab } from './Storage/DisksTab';
 import { HealthTab } from './Storage/HealthTab';
 import { PoolsTab } from './Storage/PoolsTab';
+import { AppTab } from './Storage/AppTab';
 
 const tabs = [
     { id: 'disks', label: 'Disks', icon: IconDisc },
     { id: 'health', label: 'Health', icon: IconHeart },
     { id: 'pools', label: 'Pools', icon: IconStack2 },
+    { id: 'app', label: 'App', icon: IconApps },
 ];
 
 export function StorageAppContent() {
@@ -28,6 +31,8 @@ export function StorageAppContent() {
                 return <HealthTab />;
             case 'pools':
                 return <PoolsTab />;
+            case 'app':
+                return <AppTab />;
             default:
                 return <DisksTab />;
         }

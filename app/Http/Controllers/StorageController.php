@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use App\Services\Storage\StorageService;
+use App\Services\SettingsService;
 
 class StorageController extends Controller
 {
     public function __construct(
-        protected StorageService $storageService
+        protected StorageService $storageService,
+        protected SettingsService $settingsService
     ) {}
 
     /**
@@ -65,5 +68,51 @@ class StorageController extends Controller
         }
 
         return response()->json($info);
+    }
+
+    /**
+     * Get settings by keys.
+     */
+    public function getSettings(Request $request): JsonResponse
+    {
+        $keys = $request->input('keys', []);
+
+        if (empty($keys)) {
+            $keys = ['storage.user_files_home', 'storage.app_folders_home'];
+        }
+
+        $settings = $this->settingsService->getMultiple($keys);
+
+        return response()->json([
+            'settings' => $settings,
+        ]);
+    }
+
+    /**
+     * Update settings.
+     */
+    public function updateSettings(Request $request): JsonResponse
+    {
+        $settings = $request->input('settings', []);
+
+        foreach ($settings as $key => $value) {
+            $this->settingsService->set($key, $value);
+        }
+
+        return response()->json([
+            'message' => 'Settings updated successfully',
+        ]);
+    }
+
+    /**
+     * List directories in a storage pool's mountpoint.
+     */
+    public function poolDirectories(string $pool): JsonResponse
+    {
+        $directories = $this->settingsService->listDirectoriesInPool($pool);
+
+        return response()->json([
+            'directories' => $directories,
+        ]);
     }
 }

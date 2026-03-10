@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\LinuxUserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 class WizardController extends Controller
 {
+    public function __construct(public LinuxUserService $linuxUserService)
+    {
+    }
+
     /**
      * Check if the wizard should run (no users exist).
      */
@@ -73,6 +78,62 @@ class WizardController extends Controller
         ]);
 
         Auth::login($user);
+
+        return redirect('/wizard/bind-user');
+    }
+
+    /**
+     * Show the bind user step (link to Linux user).
+     */
+    public function bindUser()
+    {
+        $user = Auth::user();
+
+        // If user already has a username bound, skip this step
+        if ($user && $user->username) {
+            return redirect('/')->with('success', 'Welcome to NovaNAS!');
+        }
+
+        $linuxUsers = $this->linuxUserService->listUsers();
+
+        return inertia('Wizard/BindUser', [
+            'linuxUsers' => $linuxUsers,
+        ]);
+    }
+
+    /**
+     * Store the Linux user binding.
+     */
+    public function storeBindUser(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return redirect('/wizard');
+        }
+
+        $validated = $request->validate([
+            'username' => ['required', 'string', 'regex:/^[a-z_][a-z0-9_-]*$/i', 'max:32'],
+        ], [
+            'username.required' => 'The username field is required.',
+            'username.regex' => 'Please enter a valid Linux username (letters, numbers, underscores, and hyphens only).',
+            'username.max' => 'The username must not exceed 32 characters.',
+        ]);
+
+        // Verify the Linux user exists using the service
+        if (!$this->linuxUserService->userExists($validated['username'])) {
+            return back()->withErrors(['username' => 'This Linux user does not exist on the system.']);
+        }
+
+        // Check if username is already taken by another user
+        $existingUser = User::where('username', $validated['username'])->where('id', '!=', $user->id)->first();
+
+        if ($existingUser) {
+            return back()->withErrors(['username' => 'This username is already bound to another account.']);
+        }
+
+        $user->username = $validated['username'];
+        $user->save();
 
         return redirect('/')->with('success', 'Welcome to NovaNAS!');
     }

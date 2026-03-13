@@ -3,8 +3,7 @@ import { Box, Text, useMantineTheme } from '@mantine/core';
 import {
     IconSettings,
     IconNetwork,
-    IconPalette,
-    IconUser,
+    IconUsers,
     IconShield,
     IconBell,
     IconCloud,
@@ -14,14 +13,14 @@ import { GeneralTab } from './Settings/GeneralTab';
 import { NetworkTab } from './Settings/NetworkTab';
 import { DynDnsTab } from './Settings/DynDnsTab';
 import { UpnpTab } from './Settings/UpnpTab';
+import { UsersTab } from './Settings/UsersTab';
 
 const tabs = [
     { id: 'general', label: 'General', icon: IconSettings },
     { id: 'network', label: 'Network', icon: IconNetwork },
     { id: 'upnp', label: 'UPNP', icon: IconWifi },
     { id: 'dyndns', label: 'DynDNS', icon: IconCloud },
-    { id: 'appearance', label: 'Appearance', icon: IconPalette },
-    { id: 'account', label: 'Account', icon: IconUser },
+    { id: 'account', label: 'Users', icon: IconUsers },
     { id: 'security', label: 'Security', icon: IconShield },
     { id: 'notifications', label: 'Notifications', icon: IconBell },
 ];
@@ -43,7 +42,7 @@ export function SettingsAppContent() {
             case 'appearance':
                 return <Text c="dimmed">Appearance settings will appear here.</Text>;
             case 'account':
-                return <Text c="dimmed">Account settings will appear here.</Text>;
+                return <UsersTab />;
             case 'security':
                 return <Text c="dimmed">Security settings will appear here.</Text>;
             case 'notifications':

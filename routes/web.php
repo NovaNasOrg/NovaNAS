@@ -12,6 +12,7 @@ use App\Http\Controllers\UpnpController;
 use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\StorageController;
 use App\Http\Controllers\SmartController;
+use App\Http\Controllers\UserController;
 
 // Wizard routes (accessible without authentication when no users exist)
 Route::get('/wizard', [WizardController::class, 'index']);
@@ -26,6 +27,10 @@ Route::get('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/login', [AuthController::class, 'authenticate']);
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Password set route for invited users (no auth required)
+Route::get('/set-password', [UserController::class, 'showSetPassword']);
+Route::post('/set-password', [UserController::class, 'setPassword']);
 
 
 Route::group(['middleware' => 'auth'], function () {
@@ -96,6 +101,20 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('/api/storage/smart/{device}/info', [SmartController::class, 'detailedInfo']);
         Route::post('/api/storage/smart/{device}/test', [SmartController::class, 'startTest']);
         Route::post('/api/storage/smart/scan-all', [SmartController::class, 'scanAll']);
+
+        // User management routes
+        Route::get('/api/users', [UserController::class, 'index']);
+        Route::post('/api/users', [UserController::class, 'store']);
+        Route::put('/api/users/{user}', [UserController::class, 'update']);
+        Route::delete('/api/users/{user}', [UserController::class, 'destroy']);
+
+        // User invitation routes
+        Route::get('/api/users/pending', [UserController::class, 'pending']);
+        Route::post('/api/users/invite', [UserController::class, 'invite']);
+        Route::delete('/api/users/invitations/{user}', [UserController::class, 'revokeInvitation']);
+
+        // Available Linux users for linking
+        Route::get('/api/users/linux/available', [UserController::class, 'availableLinuxUsers']);
     });
 
     // API routes - exclude Inertia middleware

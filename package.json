@@ -22,7 +22,7 @@
         "@hello-pangea/dnd": "^18.0.1",
         "@inertiajs/react": "^3.0",
         "@lezer/highlight": "^1.2.3",
-        "@mantine/carousel": "^9.5.1",
+        "@mantine/carousel": "^9.5.2",
         "@mantine/charts": "^9.5.1",
         "@mantine/code-highlight": "^9.5.1",
         "@mantine/core": "^9.5.1",

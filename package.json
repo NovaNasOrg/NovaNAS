@@ -34,7 +34,7 @@
         "@mantine/notifications": "^9.5.1",
         "@mantine/nprogress": "^9.5.1",
         "@mantine/spotlight": "^9.5.1",
-        "@mantine/tiptap": "^9.5.1",
+        "@mantine/tiptap": "^9.5.2",
         "@simplewebauthn/browser": "^13.3.0",
         "@tabler/icons-react": "^3.37.1",
         "@tiptap/extension-link": "^3.20.0",

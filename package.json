@@ -37,7 +37,7 @@
         "@mantine/tiptap": "^9.5.2",
         "@simplewebauthn/browser": "^13.3.0",
         "@tabler/icons-react": "^3.37.1",
-        "@tiptap/extension-link": "^3.20.0",
+        "@tiptap/extension-link": "^3.31.3",
         "@tiptap/pm": "^3.20.0",
         "@tiptap/react": "^3.20.0",
         "@tiptap/starter-kit": "^3.30.5",

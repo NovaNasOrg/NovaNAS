@@ -128,11 +128,14 @@ class SslService
      * @param  string|null  $certContent  PEM certificate content (for custom certs)
      * @param  string|null  $keyContent  PEM private key content (for custom certs)
      * @param  string|null  $caContent  PEM CA bundle content (for custom certs)
+     * @param  string|null  $targetDir  Target directory for the certificate files (defaults to CERT_DIR)
      * @return array{success: bool, message: string}
      */
-    public function installCertificate(string $domain, ?string $certContent = null, ?string $keyContent = null, ?string $caContent = null): array
+    public function installCertificate(string $domain, ?string $certContent = null, ?string $keyContent = null, ?string $caContent = null, ?string $targetDir = null): array
     {
-        $this->ensureCertDir();
+        $this->ensureCertDir($targetDir);
+
+        $targetDir ??= self::CERT_DIR;
 
         // For custom certificates, write files to acme.sh's storage directory
         if ($certContent !== null && $keyContent !== null) {
@@ -153,17 +156,18 @@ class SslService
             // Write key file
             $this->writeAcmeFile($acmeDir.'/'.$domain.'.key', $keyContent);
 
-            // Write CA bundle if provided
-            if ($caContent) {
-                $this->writeAcmeFile($acmeDir.'/ca.cer', $caContent);
-            }
+            // acme.sh --install-cert reads ca.cer and fullchain.cer from its
+            // domain directory, so provide them ourselves. A self-managed
+            // chain is the certificate plus the optional CA bundle.
+            $this->writeAcmeFile($acmeDir.'/ca.cer', $caContent ?? $certContent);
+            $this->writeAcmeFile($acmeDir.'/fullchain.cer', $caContent ? $certContent."\n".$caContent : $certContent);
         }
 
         $result = Process::timeout(60)->run([
             'sudo', self::ACME_SH, '--install-cert', '-d', $domain,
-            '--cert-file', self::CERT_DIR.'/cert.pem',
-            '--key-file', self::CERT_DIR.'/privkey.pem',
-            '--fullchain-file', self::CERT_DIR.'/fullchain.pem',
+            '--cert-file', $targetDir.'/cert.pem',
+            '--key-file', $targetDir.'/privkey.pem',
+            '--fullchain-file', $targetDir.'/fullchain.pem',
             '--reloadcmd', 'service apache2 force-reload',
         ]);
 
@@ -316,16 +320,26 @@ class SslService
     /**
      * Remove a certificate via acme.sh.
      *
+     * When a target directory is given, only that directory and the domain's
+     * metadata entry are removed. Otherwise the whole certificate directory
+     * is removed (NAS hostname behavior).
+     *
      * @return array{success: bool, message: string}
      */
-    public function removeCertificate(string $domain): array
+    public function removeCertificate(string $domain, ?string $targetDir = null): array
     {
         Process::run([
             'sudo', self::ACME_SH, '--remove', '-d', $domain, '--force',
         ]);
 
-        // Remove cert files from our directory
-        Process::run(['sudo', 'rm', '-rf', self::CERT_DIR]);
+        if ($targetDir !== null) {
+            Process::run(['sudo', 'rm', '-rf', $targetDir]);
+
+            $this->removeCertificateMetadata($domain);
+        } else {
+            // Remove cert files from our directory
+            Process::run(['sudo', 'rm', '-rf', self::CERT_DIR]);
+        }
 
         Log::info('Certificate removed', ['domain' => $domain]);
 
@@ -338,11 +352,13 @@ class SslService
     /**
      * Generate a self-signed certificate using openssl and install it via acme.sh.
      *
+     * @param  string  $domain  The domain name
+     * @param  string|null  $targetDir  Target directory for the certificate files (defaults to CERT_DIR)
      * @return array{success: bool, message: string}
      */
-    public function generateSelfSignedCertificate(string $domain): array
+    public function generateSelfSignedCertificate(string $domain, ?string $targetDir = null): array
     {
-        $this->ensureCertDir();
+        $this->ensureCertDir($targetDir);
 
         $acmeDir = '/root/.acme.sh/'.$domain.'_ecc';
 
@@ -377,15 +393,30 @@ class SslService
             ];
         }
 
+        // acme.sh --install-cert reads fullchain.cer and ca.cer from its domain
+        // directory. A self-signed certificate is its own chain, so provide them.
+        $certFile = $acmeDir.'/'.$domain.'.cer';
+
+        foreach (['fullchain.cer', 'ca.cer'] as $acmeFile) {
+            $result = Process::run(['sudo', 'cp', $certFile, $acmeDir.'/'.$acmeFile]);
+
+            if ($result->failed()) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to prepare acme.sh certificate files: '.$result->errorOutput(),
+                ];
+            }
+        }
+
         // Install the certificate via acme.sh --install-cert
-        $installResult = $this->installCertificate($domain);
+        $installResult = $this->installCertificate($domain, null, null, null, $targetDir);
 
         if (! $installResult['success']) {
             return $installResult;
         }
 
         // Save metadata for renewal tracking
-        $this->saveCertificateMetadata($domain, 'self-signed');
+        $this->saveCertificateMetadata($domain, 'self-signed', $targetDir);
 
         Log::info('Self-signed certificate generated and installed', ['domain' => $domain]);
 
@@ -402,15 +433,9 @@ class SslService
      */
     public function getSelfSignedCertificatesNeedingRenewal(): array
     {
-        $metadataFile = self::CERT_DIR.'/metadata.json';
+        $metadata = $this->readCertificateMetadata();
 
-        if (! file_exists($metadataFile)) {
-            return [];
-        }
-
-        $metadata = json_decode(file_get_contents($metadataFile), true);
-
-        if (! is_array($metadata)) {
+        if ($metadata === []) {
             return [];
         }
 
@@ -456,26 +481,63 @@ class SslService
     {
         Log::info('Renewing self-signed certificate', ['domain' => $domain]);
 
-        return $this->generateSelfSignedCertificate($domain);
+        return $this->generateSelfSignedCertificate($domain, $this->getCertificateDirFromMetadata($domain));
+    }
+
+    /**
+     * Get the stored certificate directory for a domain from the metadata file.
+     */
+    private function getCertificateDirFromMetadata(string $domain): ?string
+    {
+        $metadata = $this->readCertificateMetadata();
+
+        $certDir = $metadata[$domain]['cert_dir'] ?? null;
+
+        return is_string($certDir) && $certDir !== '' ? $certDir : null;
+    }
+
+    /**
+     * Read the certificate metadata file. The file is root-owned (written
+     * via sudo), so it must be read through sudo as well.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function readCertificateMetadata(): array
+    {
+        $metadataFile = self::CERT_DIR.'/metadata.json';
+
+        if (! file_exists($metadataFile)) {
+            return [];
+        }
+
+        $result = Process::run(['sudo', 'cat', $metadataFile]);
+
+        if ($result->failed()) {
+            return [];
+        }
+
+        $metadata = json_decode($result->output(), true);
+
+        return is_array($metadata) ? $metadata : [];
     }
 
     /**
      * Save certificate metadata for tracking.
+     *
+     * @param  string  $domain  The domain name
+     * @param  string  $type  The certificate type (e.g. "self-signed")
+     * @param  string|null  $certDir  The directory the certificate files live in (null = CERT_DIR)
      */
-    protected function saveCertificateMetadata(string $domain, string $type): void
+    protected function saveCertificateMetadata(string $domain, string $type, ?string $certDir = null): void
     {
         $this->ensureCertDir();
 
         $metadataFile = self::CERT_DIR.'/metadata.json';
-        $metadata = [];
-
-        if (file_exists($metadataFile)) {
-            $metadata = json_decode(file_get_contents($metadataFile), true) ?? [];
-        }
+        $metadata = $this->readCertificateMetadata();
 
         // Get expiry date from the certificate
         $expiresAt = null;
-        $certFile = self::CERT_DIR.'/fullchain.pem';
+        $certFile = ($certDir ?? self::CERT_DIR).'/fullchain.pem';
 
         $result = Process::run(['sudo', 'openssl', 'x509', '-in', $certFile, '-noout', '-enddate']);
 
@@ -488,6 +550,7 @@ class SslService
 
         $metadata[$domain] = [
             'type' => $type,
+            'cert_dir' => $certDir,
             'created_at' => now()->toIso8601String(),
             'expires_at' => $expiresAt,
         ];
@@ -496,6 +559,27 @@ class SslService
         file_put_contents($tmpFile, json_encode($metadata, JSON_PRETTY_PRINT));
 
         Process::run(['sudo', 'cp', $tmpFile, $metadataFile]);
+
+        unlink($tmpFile);
+    }
+
+    /**
+     * Remove a domain's metadata entry from the metadata file.
+     */
+    public function removeCertificateMetadata(string $domain): void
+    {
+        $metadata = $this->readCertificateMetadata();
+
+        if (! array_key_exists($domain, $metadata)) {
+            return;
+        }
+
+        unset($metadata[$domain]);
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'sslmeta_');
+        file_put_contents($tmpFile, json_encode($metadata, JSON_PRETTY_PRINT));
+
+        Process::run(['sudo', 'cp', $tmpFile, self::CERT_DIR.'/metadata.json']);
 
         unlink($tmpFile);
     }
@@ -512,10 +596,12 @@ class SslService
 
     /**
      * Check if a certificate exists.
+     *
+     * @param  string|null  $dir  Directory to inspect (defaults to CERT_DIR)
      */
-    protected function certificateExists(): bool
+    public function certificateExists(?string $dir = null): bool
     {
-        $result = Process::run(['test', '-f', self::CERT_DIR.'/fullchain.pem']);
+        $result = Process::run(['test', '-f', ($dir ?? self::CERT_DIR).'/fullchain.pem']);
 
         return $result->successful();
     }
@@ -523,11 +609,12 @@ class SslService
     /**
      * Get certificate information.
      *
+     * @param  string|null  $dir  Directory to inspect (defaults to CERT_DIR)
      * @return array{domain: string, issuer: string, expires_at: string}|null
      */
-    protected function getCertificateInfo(): ?array
+    public function getCertificateInfo(?string $dir = null): ?array
     {
-        $certFile = self::CERT_DIR.'/fullchain.pem';
+        $certFile = ($dir ?? self::CERT_DIR).'/fullchain.pem';
 
         $result = Process::run(['sudo', 'openssl', 'x509', '-in', $certFile, '-noout', '-subject', '-issuer', '-enddate']);
 
@@ -561,10 +648,12 @@ class SslService
 
     /**
      * Ensure the SSL certificate directory exists.
+     *
+     * @param  string|null  $dir  Directory to create (defaults to CERT_DIR)
      */
-    protected function ensureCertDir(): void
+    protected function ensureCertDir(?string $dir = null): void
     {
-        Process::run(['sudo', 'mkdir', '-p', self::CERT_DIR]);
+        Process::run(['sudo', 'mkdir', '-p', $dir ?? self::CERT_DIR]);
     }
 
     /**

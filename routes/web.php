@@ -23,6 +23,7 @@ use App\Http\Controllers\LogViewerController;
 use App\Http\Controllers\MonitorController;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\PasskeyController;
+use App\Http\Controllers\ReverseProxyController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SmartController;
 use App\Http\Controllers\SslSettingsController;
@@ -135,6 +136,18 @@ Route::group(['middleware' => 'auth'], function () {
         Route::delete('/api/firewall/rules/{id}', [FirewallController::class, 'destroy']);
         Route::put('/api/firewall/default-policies', [FirewallController::class, 'setDefaultPolicy']);
         Route::get('/api/firewall/interfaces', [FirewallController::class, 'interfaces']);
+
+        // Reverse proxy routes
+        Route::get('/api/reverse-proxy/hosts', [ReverseProxyController::class, 'index']);
+        Route::post('/api/reverse-proxy/hosts', [ReverseProxyController::class, 'store']);
+        Route::post('/api/reverse-proxy/check-reachability', [ReverseProxyController::class, 'checkReachability']);
+        Route::put('/api/reverse-proxy/hosts/{host}', [ReverseProxyController::class, 'update']);
+        Route::delete('/api/reverse-proxy/hosts/{host}', [ReverseProxyController::class, 'destroy']);
+        Route::post('/api/reverse-proxy/hosts/{host}/toggle', [ReverseProxyController::class, 'toggle']);
+        Route::post('/api/reverse-proxy/hosts/{host}/ssl/letsencrypt', [ReverseProxyController::class, 'issueLetsEncrypt']);
+        Route::post('/api/reverse-proxy/hosts/{host}/ssl/self-signed', [ReverseProxyController::class, 'generateSelfSigned']);
+        Route::post('/api/reverse-proxy/hosts/{host}/ssl/custom', [ReverseProxyController::class, 'installCustomCertificate']);
+        Route::delete('/api/reverse-proxy/hosts/{host}/ssl', [ReverseProxyController::class, 'removeCertificate']);
 
         // Storage routes
         Route::get('/api/storage/disks', [StorageController::class, 'disks']);

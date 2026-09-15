@@ -16,6 +16,7 @@ import { MonitorAppContent } from '../Apps/MonitorApp';
 import { SupportAppContent } from '../Apps/SupportApp';
 import { BackupAppContent } from '../Apps/BackupApp';
 import { LogsAppContent } from '../Apps/LogsApp';
+import { ReverseProxyAppContent } from '../Apps/ReverseProxyApp';
 import { useCallback, useState, useEffect } from 'react';
 import { useIsMobile } from './useIsMobile';
 
@@ -32,6 +33,7 @@ const APP_COMPONENTS = {
     support: () => <SupportAppContent />,
     backup: () => <BackupAppContent />,
     logs: () => <LogsAppContent />,
+    'reverse-proxy': () => <ReverseProxyAppContent />,
 };
 
 function DesktopContent({ version, initialDesktopApps = [], initialUserIconOrders = {} }) {

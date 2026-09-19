@@ -60,3 +60,41 @@ test('generated desktop endpoints authenticate the device but perform file opera
         ->toContain('read only = yes')
         ->toContain('browseable = no');
 });
+
+test('device identities cannot receive an automatic personal folder', function () {
+    $service = new DesktopAccessService(
+        Mockery::mock(SambaService::class),
+        Mockery::mock(AclService::class),
+        Mockery::mock(LinuxUserService::class),
+    );
+
+    $configuration = $service->renderConfiguration([], ['nvd1abcdefghijk']);
+
+    expect($configuration)
+        ->toContain('[homes]')
+        ->toContain('invalid users = nvd1abcdefghijk');
+});
+
+test('a personal folder endpoint is visible under the linked Linux username', function () {
+    $service = new DesktopAccessService(
+        Mockery::mock(SambaService::class),
+        Mockery::mock(AclService::class),
+        Mockery::mock(LinuxUserService::class),
+    );
+
+    $configuration = $service->renderConfiguration([[
+        'alias' => 'glados',
+        'path' => '/home/glados',
+        'username' => 'glados',
+        'device_usernames' => ['nvd1abcdefghijk', 'glados'],
+        'read_only' => false,
+        'browseable' => true,
+    ]]);
+
+    expect($configuration)
+        ->toContain('[glados]')
+        ->toContain('path = /home/glados')
+        ->toContain('valid users = nvd1abcdefghijk glados')
+        ->toContain('force user = glados')
+        ->toContain('browseable = yes');
+});

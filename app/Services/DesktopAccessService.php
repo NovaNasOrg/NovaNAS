@@ -116,8 +116,8 @@ class DesktopAccessService
 
             $folders[] = [
                 'id' => $folder->uuid,
-                'name' => $share['name'] === 'homes' ? 'Home' : $share['name'],
-                'comment' => $share['comment'] ?? null,
+                'name' => $share['name'] === 'homes' ? $user->username : $share['name'],
+                'comment' => $share['name'] === 'homes' ? 'Personal folder' : ($share['comment'] ?? null),
                 'permission' => $permission,
                 'connection_name' => $this->aliasFor($user, $folder),
             ];
@@ -135,12 +135,18 @@ class DesktopAccessService
     {
         $shares = $this->syncFolderCatalog();
         $entries = [];
-        $devicesByUser = DesktopDevice::query()
+        $activeDevices = DesktopDevice::query()
             ->active()
             ->with('user')
-            ->get()
+            ->get();
+        $devicesByUser = $activeDevices
             ->filter(fn (DesktopDevice $device) => $device->user->isActive() && $device->user->username)
             ->groupBy('user_id');
+        $blockedHomeUsers = collect($shares)->contains(
+            fn (array $share) => $share['name'] === 'homes' && $share['enabled'],
+        )
+            ? $activeDevices->pluck('samba_username')->unique()->values()->all()
+            : [];
 
         foreach ($devicesByUser as $devices) {
             $user = $devices->first()->user;
@@ -165,13 +171,20 @@ class DesktopAccessService
                     'alias' => $this->aliasFor($user, $folder),
                     'path' => $path,
                     'username' => $user->username,
-                    'device_usernames' => $devices->pluck('samba_username')->all(),
+                    'device_usernames' => $share['name'] === 'homes'
+                        ? $devices->pluck('samba_username')->push($user->username)->unique()->values()->all()
+                        : $devices->pluck('samba_username')->all(),
                     'read_only' => $permission === 'read',
+                    'browseable' => $share['name'] === 'homes',
                 ];
+
+                if ($share['name'] === 'homes') {
+                    $aliasesToClose[] = $this->legacyAliasFor($user, $folder);
+                }
             }
         }
 
-        $this->writeConfiguration($this->renderConfiguration($entries));
+        $this->writeConfiguration($this->renderConfiguration($entries, $blockedHomeUsers));
 
         $reload = Process::run(['sudo', 'smbcontrol', 'smbd', 'reload-config']);
         if ($reload->failed()) {
@@ -180,6 +193,12 @@ class DesktopAccessService
 
         foreach (array_unique($aliasesToClose) as $alias) {
             Process::run(['sudo', 'smbcontrol', 'smbd', 'close-share', $alias]);
+        }
+
+        // The standard personal-folder section derives a folder name from the
+        // login identity. Device identities must never get one of those folders.
+        foreach ($blockedHomeUsers as $deviceUsername) {
+            Process::run(['sudo', 'smbcontrol', 'smbd', 'close-share', $deviceUsername]);
         }
     }
 
@@ -226,11 +245,23 @@ class DesktopAccessService
     }
 
     /**
-     * @param  array<int, array{alias: string, path: string, username: string, device_usernames: array<int, string>, read_only: bool}>  $entries
+     * @param  array<int, array{alias: string, path: string, username: string, device_usernames: array<int, string>, read_only: bool, browseable?: bool}>  $entries
+     * @param  array<int, string>  $blockedHomeUsers
      */
-    public function renderConfiguration(array $entries): string
+    public function renderConfiguration(array $entries, array $blockedHomeUsers = []): string
     {
         $output = "# Managed by NovaNAS. Manual changes will be overwritten.\n\n";
+
+        if ($blockedHomeUsers !== []) {
+            foreach ($blockedHomeUsers as $username) {
+                if (str_contains($username, "\n") || str_contains($username, "\r")) {
+                    throw new \RuntimeException('Invalid newline in generated shared-folder configuration.');
+                }
+            }
+
+            $output .= "[homes]\n";
+            $output .= '   invalid users = '.implode(' ', $blockedHomeUsers)."\n\n";
+        }
 
         foreach ($entries as $entry) {
             foreach ([$entry['alias'], $entry['path'], $entry['username'], ...$entry['device_usernames']] as $value) {
@@ -241,7 +272,7 @@ class DesktopAccessService
 
             $output .= "[{$entry['alias']}]\n";
             $output .= "   path = {$entry['path']}\n";
-            $output .= "   browseable = no\n";
+            $output .= '   browseable = '.(($entry['browseable'] ?? false) ? 'yes' : 'no')."\n";
             $output .= "   guest ok = no\n";
             $output .= '   valid users = '.implode(' ', $entry['device_usernames'])."\n";
             $output .= "   force user = {$entry['username']}\n";
@@ -315,6 +346,20 @@ class DesktopAccessService
     }
 
     private function aliasFor(User $user, DesktopSharedFolder $folder): string
+    {
+        if ($folder->type === 'homes' && $user->username) {
+            $hasCollision = DesktopSharedFolder::query()
+                ->where('type', 'custom')
+                ->where('samba_name', $user->username)
+                ->exists();
+
+            return $hasCollision ? $user->username.'-home' : $user->username;
+        }
+
+        return $this->legacyAliasFor($user, $folder);
+    }
+
+    private function legacyAliasFor(User $user, DesktopSharedFolder $folder): string
     {
         return 'nvd-u'.$user->id.'-'.Str::lower(Str::substr(str_replace('-', '', $folder->uuid), 0, 12));
     }

@@ -76,6 +76,11 @@ Route::get('/__novanas_proxy_auth/grant', [ProxyAuthController::class, 'grant'])
 Route::group(['middleware' => 'auth'], function () {
     Route::get('/', [HomeController::class, 'index']);
 
+    // Desktop app authentication handoff landing page
+    Route::get('/desktop/success', function () {
+        return response('<!DOCTYPE html><html><head><meta charset="utf-8"><title>NovaNAS Desktop</title><style>body{background:#0d0f12;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;}.card{background:#16161c;border:1px solid #282b36;padding:40px;border-radius:16px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.5);}.icon{width:56px;height:56px;background:rgba(32,153,240,0.15);color:#2099f0;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;}h1{font-size:20px;margin:0 0 8px;}p{color:#8c93a8;font-size:14px;line-height:1.5;margin:0;}</style></head><body><div class="card"><div class="icon">&#10003;</div><h1>Connected to Desktop</h1><p>You have successfully logged in. You can now return to the NovaNAS desktop app.</p></div></body></html>');
+    });
+
     Route::withoutMiddleware(HandleInertiaRequests::class)->group(function () {
         // Desktop apps API (for live refresh)
         Route::get('/api/desktop-apps', [HomeController::class, 'desktopApps']);

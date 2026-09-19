@@ -32,6 +32,13 @@ class AuthController extends Controller
             }
         }
 
+        // Desktop app login: remember desktop login so the user is redirected
+        // to the desktop success page instead of loading the web dashboard
+        if ($request->boolean('desktop') || $request->has('desktop')) {
+            $request->session()->put('desktop_login', true);
+            $request->session()->put('url.intended', '/desktop/success');
+        }
+
         return Inertia::render('Login', [
             'version' => config('app.version'),
             'passwordSet' => $request->boolean('password_set', false),
@@ -139,6 +146,10 @@ class AuthController extends Controller
     {
         $handoff = $request->session()->pull('proxy_auth_handoff', false);
         $intended = $request->session()->pull('url.intended');
+
+        if ($request->session()->pull('desktop_login', false) || $intended === '/desktop/success') {
+            return Inertia::location('/desktop/success');
+        }
 
         if (is_string($intended) && $intended !== ''
             && ($handoff === true || $this->isCrossOriginUrl($intended, $request))) {

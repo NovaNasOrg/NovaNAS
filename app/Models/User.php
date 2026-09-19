@@ -6,6 +6,7 @@ use App\Services\SambaService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\DatabaseNotificationCollection;
@@ -39,6 +40,8 @@ use Spatie\LaravelPasskeys\Models\Passkey;
  * @property-read int|null $notifications_count
  * @property-read Collection<int, Passkey> $passkeys
  * @property-read int|null $passkeys_count
+ * @property-read Collection<int, DesktopDevice> $desktopDevices
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User active()
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
@@ -63,6 +66,7 @@ use Spatie\LaravelPasskeys\Models\Passkey;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTwoFactorSecret($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUsername($value)
+ *
  * @mixin \Eloquent
  */
 class User extends Authenticatable implements HasPasskeys
@@ -192,6 +196,14 @@ class User extends Authenticatable implements HasPasskeys
             // Clear the plain password after sync
             $user->plainPasswordForSamba = null;
         });
+    }
+
+    /**
+     * @return HasMany<DesktopDevice, $this>
+     */
+    public function desktopDevices(): HasMany
+    {
+        return $this->hasMany(DesktopDevice::class);
     }
 
     /**

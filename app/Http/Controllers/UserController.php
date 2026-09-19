@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Mail\InvitationMail;
 use App\Models\User;
+use App\Services\DesktopAccessService;
 use App\Services\EmailService;
 use App\Services\LinuxUserService;
 use App\Services\ProxyAuthService;
@@ -27,7 +28,8 @@ class UserController extends Controller
         public LinuxUserService $linuxUserService,
         public SettingsService $settingsService,
         public SambaService $sambaService,
-        public ProxyAuthService $proxyAuthService
+        public ProxyAuthService $proxyAuthService,
+        public DesktopAccessService $desktopAccessService,
     ) {}
 
     /**
@@ -289,6 +291,14 @@ class UserController extends Controller
         }
 
         $username = $user->username;
+
+        try {
+            $this->desktopAccessService->revokeAllForUser($user);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'error' => 'Failed to revoke this user\'s computer access: '.$e->getMessage(),
+            ], 500);
+        }
 
         // Delete the user from database
         $user->delete();

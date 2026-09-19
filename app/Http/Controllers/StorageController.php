@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AclService;
+use App\Services\DesktopAccessService;
 use App\Services\LinuxUserService;
 use App\Services\NetworkService;
 use App\Services\SambaService;
@@ -19,7 +20,8 @@ class StorageController extends Controller
         protected SambaService $sambaService,
         protected LinuxUserService $linuxUserService,
         protected NetworkService $networkService,
-        protected AclService $aclService
+        protected AclService $aclService,
+        protected DesktopAccessService $desktopAccessService,
     ) {}
 
     /**
@@ -372,10 +374,8 @@ class StorageController extends Controller
                 'user_permissions' => $userPermissions,
             ]);
 
-            // Apply filesystem ACLs
-            if (! empty($userPermissions)) {
-                $this->aclService->applyPermissions($validated['path'], $userPermissions);
-            }
+            $this->aclService->applyPermissions($validated['path'], $userPermissions);
+            $this->desktopAccessService->reconcile();
 
             return response()->json([
                 'message' => 'Share created successfully',
@@ -412,7 +412,12 @@ class StorageController extends Controller
             }
         }
 
-        $userPermissions = $this->filterUserPermissions($validated['user_permissions'] ?? []);
+        $existingShare = $this->sambaService->getShare($name);
+        $existingPath = is_string($existingShare['path'] ?? null) ? $existingShare['path'] : null;
+        $userPermissions = array_key_exists('user_permissions', $validated)
+            ? $this->filterUserPermissions($validated['user_permissions'] ?? [])
+            : $this->filterUserPermissions($existingPath ? $this->aclService->getPermissions($existingPath) : []);
+        $aliasesToClose = $this->desktopAccessService->aliasesForSambaName($name);
 
         try {
             $this->sambaService->updateShare($name, [
@@ -423,11 +428,13 @@ class StorageController extends Controller
                 'user_permissions' => $userPermissions,
             ]);
 
-            // Apply filesystem ACLs
             $sharePath = $validated['path'] ?? $this->sambaService->getShare($newName)['path'] ?? null;
-            if ($sharePath && ! empty($userPermissions)) {
+            if ($sharePath && (array_key_exists('user_permissions', $validated) || array_key_exists('path', $validated))) {
                 $this->aclService->applyPermissions($sharePath, $userPermissions);
             }
+
+            $this->desktopAccessService->renameFolder($name, $newName, $sharePath);
+            $this->desktopAccessService->reconcile($aliasesToClose);
 
             return response()->json([
                 'message' => 'Share updated successfully',
@@ -445,7 +452,10 @@ class StorageController extends Controller
     public function deleteShare(string $name): JsonResponse
     {
         try {
+            $aliasesToClose = $this->desktopAccessService->aliasesForSambaName($name);
             $this->sambaService->deleteShare($name);
+            $this->desktopAccessService->forgetFolder($name);
+            $this->desktopAccessService->reconcile($aliasesToClose);
 
             return response()->json([
                 'message' => 'Share deleted successfully',
@@ -479,7 +489,9 @@ class StorageController extends Controller
         ]);
 
         try {
+            $aliasesToClose = $this->desktopAccessService->aliasesForSambaName('homes');
             $this->sambaService->setHomesEnabled($validated['enabled']);
+            $this->desktopAccessService->reconcile($aliasesToClose);
 
             return response()->json([
                 'message' => 'Homes share '.($validated['enabled'] ? 'enabled' : 'disabled').' successfully',

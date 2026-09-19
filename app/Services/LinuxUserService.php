@@ -169,6 +169,36 @@ class LinuxUserService
     }
 
     /**
+     * Create a locked system identity used only to authenticate a desktop device.
+     */
+    public function createDesktopDeviceUser(string $username): bool
+    {
+        if (! preg_match('/^nvd[a-z0-9]{8,17}$/', $username)) {
+            throw new \InvalidArgumentException('Invalid desktop device username.');
+        }
+
+        if ($this->userExists($username)) {
+            return true;
+        }
+
+        $result = Process::run([
+            'sudo',
+            'useradd',
+            '--system',
+            '--no-create-home',
+            '--home-dir', '/nonexistent',
+            '--shell', '/usr/sbin/nologin',
+            $username,
+        ]);
+
+        if ($result->failed()) {
+            throw new \RuntimeException("Failed to create desktop device user '{$username}': ".$result->errorOutput());
+        }
+
+        return true;
+    }
+
+    /**
      * Update a Linux user's password.
      *
      * @param  string  $username  The username
@@ -208,7 +238,9 @@ class LinuxUserService
             return true;
         }
 
-        $command = $removeHome ? ['userdel', '-r', $username] : ['userdel', $username];
+        $command = $removeHome
+            ? ['sudo', 'userdel', '-r', $username]
+            : ['sudo', 'userdel', $username];
         $result = Process::run($command);
 
         if ($result->failed()) {

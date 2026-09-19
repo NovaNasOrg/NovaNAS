@@ -335,7 +335,7 @@ class SambaService
         // Keys provided in the config (even if empty/null) are updated,
         // allowing fields to be explicitly cleared by setting them to an empty string.
         foreach ($config as $key => $value) {
-            if ($key !== 'name' && array_key_exists($key, $currentShare)) {
+            if ($key !== 'name' && (array_key_exists($key, $currentShare) || $key === 'user_permissions')) {
                 // For fields that can be explicitly cleared (like valid users),
                 // update when the key was explicitly provided in the config.
                 // If value is null or empty, set to empty string to clear the field.
@@ -894,39 +894,19 @@ class SambaService
             throw new \RuntimeException("Cannot update Samba password: user '{$username}' not found on system.");
         }
 
-        // smbpasswd -a -s requires the password TWICE (new password + confirmation)
-        // Each on a separate line
         $passwordWithConfirmation = $password."\n".$password."\n";
 
-        // Write password to temp file
-        $tempFile = '/tmp/smbpass_'.uniqid().'.tmp';
-        file_put_contents($tempFile, $passwordWithConfirmation);
-        chmod($tempFile, 0600);
+        $result = Process::input($passwordWithConfirmation)->run([
+            'sudo',
+            'smbpasswd',
+            '-a',
+            '-s',
+            $username,
+        ]);
 
-        try {
-            // Run smbpasswd with password from file
-            $cmd = sprintf(
-                'sudo smbpasswd -a -s %s < %s 2>&1',
-                escapeshellarg($username),
-                escapeshellarg($tempFile)
-            );
-
-            $output = shell_exec($cmd);
-
-            // Check for errors in output
-            if ($output && (strpos($output, 'Unable to get new password') !== false ||
-                           strpos($output, 'Mismatch') !== false ||
-                           strpos($output, 'error') !== false)) {
-                @unlink($tempFile);
-                throw new \RuntimeException('Failed to update Samba password: '.trim($output));
-            }
-        } catch (\Exception $e) {
-            @unlink($tempFile);
-            throw new \RuntimeException('Failed to update Samba password: '.$e->getMessage());
+        if ($result->failed()) {
+            throw new \RuntimeException('Failed to update Samba password: '.$result->errorOutput());
         }
-
-        // Clean up
-        @unlink($tempFile);
 
         return true;
     }

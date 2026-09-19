@@ -6,6 +6,7 @@ use App\Http\Controllers\BackupJobController;
 use App\Http\Controllers\BackupRepositoryController;
 use App\Http\Controllers\BackupServerController;
 use App\Http\Controllers\BackupSnapshotController;
+use App\Http\Controllers\DesktopAccessController;
 use App\Http\Controllers\DesktopIconController;
 use App\Http\Controllers\DockerComposeController;
 use App\Http\Controllers\DockerController;
@@ -86,6 +87,9 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('/api/desktop-apps', [HomeController::class, 'desktopApps']);
 
         Route::get('/api/system/info', [SystemController::class, 'info']);
+        Route::get('/api/desktop/folders', [DesktopAccessController::class, 'index']);
+        Route::post('/api/desktop/devices', [DesktopAccessController::class, 'store']);
+        Route::delete('/api/desktop/devices/{uuid}', [DesktopAccessController::class, 'destroy']);
         Route::get('/api/system/network-interfaces', [SystemController::class, 'networkInterfaces']);
         Route::get('/api/system/network-config', [SystemController::class, 'getNetworkConfig']);
         Route::get('/api/system/interface-config/{interface}', [SystemController::class, 'getInterfaceConfig']);

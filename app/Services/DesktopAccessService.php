@@ -260,7 +260,8 @@ class DesktopAccessService
             }
 
             $output .= "[homes]\n";
-            $output .= '   invalid users = '.implode(' ', $blockedHomeUsers)."\n\n";
+            $output .= '   invalid users = '.implode(' ', $blockedHomeUsers)."\n";
+            $output .= "   access based share enum = yes\n\n";
         }
 
         foreach ($entries as $entry) {

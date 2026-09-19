@@ -72,7 +72,8 @@ test('device identities cannot receive an automatic personal folder', function (
 
     expect($configuration)
         ->toContain('[homes]')
-        ->toContain('invalid users = nvd1abcdefghijk');
+        ->toContain('invalid users = nvd1abcdefghijk')
+        ->toContain('access based share enum = yes');
 });
 
 test('a personal folder endpoint is visible under the linked Linux username', function () {

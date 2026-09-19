@@ -11,6 +11,7 @@ use App\Mail\InvitationMail;
 use App\Models\User;
 use App\Services\EmailService;
 use App\Services\LinuxUserService;
+use App\Services\ProxyAuthService;
 use App\Services\SambaService;
 use App\Services\SettingsService;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +26,8 @@ class UserController extends Controller
     public function __construct(
         public LinuxUserService $linuxUserService,
         public SettingsService $settingsService,
-        public SambaService $sambaService
+        public SambaService $sambaService,
+        public ProxyAuthService $proxyAuthService
     ) {}
 
     /**
@@ -300,6 +302,9 @@ class UserController extends Controller
                 report($e);
             }
         }
+
+        // Refresh the reverse proxy token maps (cascade removed the user's tokens)
+        $this->proxyAuthService->writeAllAuthMaps();
 
         return response()->json([
             'message' => 'User deleted successfully',

@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -18,8 +20,10 @@ use Illuminate\Support\Carbon;
  * @property bool $https_redirect
  * @property string $ssl_mode
  * @property bool $enabled
+ * @property bool $auth_enabled
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read Collection<int, User> $authUsers
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ProxyHost newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ProxyHost newQuery()
@@ -58,6 +62,7 @@ class ProxyHost extends Model
         'https_redirect',
         'ssl_mode',
         'enabled',
+        'auth_enabled',
     ];
 
     /**
@@ -72,6 +77,23 @@ class ProxyHost extends Model
             'websocket_enabled' => 'boolean',
             'https_redirect' => 'boolean',
             'enabled' => 'boolean',
+            'auth_enabled' => 'boolean',
         ];
+    }
+
+    /**
+     * NAS users allowed to access this host through the login bridge.
+     */
+    public function authUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'proxy_host_auth_users')->withTimestamps();
+    }
+
+    /**
+     * Check whether a user is allowed to access this host.
+     */
+    public function allowsUser(int $userId): bool
+    {
+        return $this->authUsers()->where('users.id', $userId)->exists();
     }
 }

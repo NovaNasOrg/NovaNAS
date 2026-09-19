@@ -46,6 +46,9 @@ class StoreProxyHostRequest extends FormRequest
             'websocket_enabled' => ['boolean'],
             'https_redirect' => ['boolean'],
             'enabled' => ['boolean'],
+            'auth_enabled' => ['boolean'],
+            'auth_user_ids' => ['array'],
+            'auth_user_ids.*' => ['integer', 'exists:users,id'],
         ];
     }
 

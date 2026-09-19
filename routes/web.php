@@ -23,6 +23,7 @@ use App\Http\Controllers\LogViewerController;
 use App\Http\Controllers\MonitorController;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\PasskeyController;
+use App\Http\Controllers\ProxyAuthController;
 use App\Http\Controllers\ReverseProxyController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SmartController;
@@ -67,6 +68,10 @@ Route::post('/set-password', [UserController::class, 'setPassword']);
 
 // Invitation route (clean URL structure)
 Route::get('/invitation/{token}', [UserController::class, 'showSetPassword']);
+
+// Reverse proxy login bridge (public - runs on the NAS domain and on proxy domains)
+Route::get('/proxy-auth/login', [ProxyAuthController::class, 'login'])->name('proxy-auth.login');
+Route::get('/__novanas_proxy_auth/grant', [ProxyAuthController::class, 'grant'])->name('proxy-auth.grant');
 
 Route::group(['middleware' => 'auth'], function () {
     Route::get('/', [HomeController::class, 'index']);

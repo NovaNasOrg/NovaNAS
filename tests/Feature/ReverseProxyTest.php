@@ -311,6 +311,28 @@ test('custom certificate install provides fullchain and ca files for acme.sh ins
 // Feature behavior
 // ---------------------------------------------------------------------------
 
+test('the acme challenge path is never proxied to the backend', function () {
+    Process::fake(['*' => Process::result()]);
+
+    $service = app(ReverseProxyService::class);
+
+    $host = ProxyHost::factory()->make([
+        'domain' => 'app.example.com',
+        'target_host' => '192.168.1.50',
+        'target_port' => 8096,
+        'target_protocol' => 'http',
+        'ssl_mode' => 'none',
+    ]);
+    $host->id = 12;
+
+    $config = $service->generateVhostConfig($host);
+
+    // The challenge must be served from the local acme webroot (global
+    // Alias), otherwise certificate issuance fails with the backend's
+    // response (e.g. a 401).
+    expect($config)->toContain('ProxyPass /.well-known/acme-challenge !');
+});
+
 test('creating a proxy host writes the apache config', function () {
     Process::fake(['*' => Process::result()]);
     Process::preventStrayProcesses();

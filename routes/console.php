@@ -7,6 +7,7 @@ use App\Jobs\UpnpRenewJob;
 use App\Models\DynDnsConfig;
 use App\Models\UpnpRule;
 use App\Services\NovaNASUpdateService;
+use App\Services\ProxyAuthService;
 use App\Services\Storage\SmartService;
 use App\Services\UpdateService;
 use Illuminate\Foundation\Inspiring;
@@ -140,3 +141,13 @@ Schedule::command('logs:prune')
 Schedule::command('backup:run-scheduled')
     ->everyMinute()
     ->name('backup-scheduler');
+
+/**
+ * Reverse Proxy Login Token Pruning
+ *
+ * Removes expired reverse proxy session tokens and tokens whose NAS session
+ * no longer exists, then refreshes the Apache token maps. Runs hourly.
+ */
+Schedule::call(function () {
+    app(ProxyAuthService::class)->pruneTokens();
+})->hourly()->name('proxy-auth-token-prune');

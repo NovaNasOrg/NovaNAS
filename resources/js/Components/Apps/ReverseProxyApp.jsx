@@ -8,6 +8,7 @@ import {
     Modal,
     TextInput,
     Select,
+    MultiSelect,
     Switch,
     Textarea,
     Stack,
@@ -81,6 +82,7 @@ export function ReverseProxyAppContent() {
     const theme = useMantineTheme();
     const isMobile = useIsMobile();
     const [hosts, setHosts] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -105,6 +107,8 @@ export function ReverseProxyAppContent() {
         https_redirect: false,
         enabled: true,
         ssl_mode: 'none',
+        auth_enabled: false,
+        auth_user_ids: [],
     });
 
     const [customCert, setCustomCert] = useState({
@@ -115,7 +119,18 @@ export function ReverseProxyAppContent() {
 
     useEffect(() => {
         fetchHosts();
+        fetchUsers();
     }, []);
+
+    const fetchUsers = async () => {
+        try {
+            const response = await fetch('/api/users');
+            const data = await response.json();
+            setUsers(data.users || []);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const fetchHosts = async () => {
         setLoading(true);
@@ -160,6 +175,8 @@ export function ReverseProxyAppContent() {
             https_redirect: false,
             enabled: true,
             ssl_mode: 'none',
+            auth_enabled: false,
+            auth_user_ids: [],
         });
     };
 
@@ -182,6 +199,8 @@ export function ReverseProxyAppContent() {
             https_redirect: !!host.https_redirect,
             enabled: host.enabled !== false,
             ssl_mode: host.ssl_mode || 'none',
+            auth_enabled: !!host.auth_enabled,
+            auth_user_ids: (host.auth_users || []).map((u) => u.id),
         });
         openModal();
     };
@@ -200,6 +219,8 @@ export function ReverseProxyAppContent() {
                 websocket_enabled: formData.websocket_enabled,
                 https_redirect: formData.https_redirect,
                 enabled: formData.enabled,
+                auth_enabled: formData.auth_enabled,
+                auth_user_ids: formData.auth_user_ids.map((id) => Number(id)),
             };
 
             const response = editingHost
@@ -472,6 +493,17 @@ export function ReverseProxyAppContent() {
         ? 'Save the proxy host first to be able to request or install a certificate.'
         : null;
 
+    const userOptions = users.map((user) => ({
+        value: String(user.id),
+        label: user.name ? `${user.name} (${user.email})` : user.email,
+    }));
+
+    const renderAuthBadge = (host) => (host.auth_enabled ? (
+        <Badge color="violet" variant="light" size="sm">
+            NAS Login
+        </Badge>
+    ) : null);
+
     const sslModeOptions = Object.entries(SSL_MODE_LABELS).map(([value, label]) => ({ value, label }));
 
     const renderSslBadge = (host) => {
@@ -613,6 +645,7 @@ export function ReverseProxyAppContent() {
                             </Group>
                             <Group gap="xs" mb="xs" wrap="wrap">
                                 {renderSslBadge(host)}
+                                {renderAuthBadge(host)}
                                 {host.websocket_enabled && (
                                     <Badge color="blue" variant="light" size="sm">
                                         WebSocket
@@ -659,6 +692,7 @@ export function ReverseProxyAppContent() {
                             <Table.Th c="dimmed">WebSocket</Table.Th>
                             <Table.Th c="dimmed">SSL</Table.Th>
                             <Table.Th c="dimmed">HTTPS Redirect</Table.Th>
+                            <Table.Th c="dimmed">Access</Table.Th>
                             <Table.Th c="dimmed">Enabled</Table.Th>
                             <Table.Th c="dimmed">Actions</Table.Th>
                         </Table.Tr>
@@ -680,6 +714,20 @@ export function ReverseProxyAppContent() {
                                     )}
                                 </Table.Td>
                                 <Table.Td>{renderSslBadge(host)}</Table.Td>
+                                <Table.Td>
+                                    {host.auth_enabled ? (
+                                        <Tooltip
+                                            label={`Allowed: ${(host.auth_users || []).map((u) => u.name || u.email).join(', ')}`}
+                                            disabled={(host.auth_users || []).length === 0}
+                                            multiline
+                                            withArrow
+                                        >
+                                            <Box>{renderAuthBadge(host)}</Box>
+                                        </Tooltip>
+                                    ) : (
+                                        <Text c="dimmed">Public</Text>
+                                    )}
+                                </Table.Td>
                                 <Table.Td>
                                     {host.https_redirect ? (
                                         <Badge color="teal" variant="light">Redirect</Badge>
@@ -808,6 +856,47 @@ export function ReverseProxyAppContent() {
                             checked={formData.enabled}
                             onChange={(e) => setFormData({ ...formData, enabled: e.currentTarget.checked })}
                         />
+
+                        {/* NAS login protection */}
+                        <Box
+                            p="md"
+                            style={{
+                                backgroundColor: theme.colors.dark[6],
+                                borderRadius: '12px',
+                                border: `1px solid ${theme.colors.dark[4]}`,
+                            }}
+                        >
+                            <Switch
+                                label="Require NAS login"
+                                description="Visitors must log in with an allowed NAS account on the NAS login page before they can access this app."
+                                checked={formData.auth_enabled}
+                                onChange={(e) => setFormData({ ...formData, auth_enabled: e.currentTarget.checked })}
+                                mb={formData.auth_enabled ? 'md' : 0}
+                            />
+
+                            {formData.auth_enabled && (
+                                <Stack gap="sm">
+                                    <MultiSelect
+                                        label="Allowed users"
+                                        placeholder={userOptions.length === 0 ? 'No NAS users available' : 'Select the users that may access this app'}
+                                        description="Unselected users are rejected even when they are logged in to the NAS."
+                                        data={userOptions}
+                                        value={formData.auth_user_ids.map(String)}
+                                        onChange={(values) => setFormData({ ...formData, auth_user_ids: values })}
+                                        searchable
+                                        clearable
+                                        nothingFoundMessage="No users found"
+                                    />
+
+                                    {formData.auth_user_ids.length === 0 && (
+                                        <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={16} />}>
+                                            No user is selected yet. With the restriction enabled, nobody can access
+                                            this app until you allow at least one NAS user.
+                                        </Alert>
+                                    )}
+                                </Stack>
+                            )}
+                        </Box>
 
                         {/* SSL certificate section */}
                         <Box

@@ -587,7 +587,7 @@ class SslService
     /**
      * Check if SSL is enabled in Apache.
      */
-    protected function isSslEnabled(): bool
+    public function isSslEnabled(): bool
     {
         $result = Process::run(['apache2ctl', '-M']);
 

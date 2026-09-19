@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ProxyHost;
+use App\Models\User;
 use Illuminate\Support\Facades\Process;
 
 /**
@@ -31,7 +32,11 @@ class ReverseProxyService
     /**
      * Create a new service instance.
      */
-    public function __construct(private SslService $sslService, private NovaNasApiService $novaNasApiService) {}
+    public function __construct(
+        private SslService $sslService,
+        private NovaNasApiService $novaNasApiService,
+        private ProxyAuthService $proxyAuthService
+    ) {}
 
     /**
      * Get all proxy hosts with their certificate information.
@@ -41,11 +46,16 @@ class ReverseProxyService
     public function getHosts(): array
     {
         return ProxyHost::query()
+            ->with('authUsers')
             ->orderBy('domain')
             ->get()
             ->map(function (ProxyHost $host) {
                 $data = $host->toArray();
                 $data['certificate'] = $this->getHostCertificate($host);
+                $data['auth_users'] = $host->authUsers
+                    ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email])
+                    ->values()
+                    ->all();
 
                 return $data;
             })
@@ -71,7 +81,10 @@ class ReverseProxyService
             ];
         }
 
+        $authUserIds = $this->extractAuthUserIds($data);
+
         $host->save();
+        $this->syncAuthUsers($host, $authUserIds);
 
         $writeResult = $this->writeApacheConfig($host);
 
@@ -113,6 +126,7 @@ class ReverseProxyService
         }
 
         $original = $host->getOriginal();
+        $originalAuthUserIds = $host->authUsers()->pluck('users.id')->all();
 
         $host->fill($data);
 
@@ -125,6 +139,7 @@ class ReverseProxyService
         }
 
         $host->save();
+        $this->syncAuthUsers($host, $this->extractAuthUserIds($data));
 
         $writeResult = $this->writeApacheConfig($host);
 
@@ -133,6 +148,7 @@ class ReverseProxyService
             // so revert the database row to the original values as well.
             $host->fill($original);
             $host->save();
+            $this->syncAuthUsers($host, $originalAuthUserIds);
 
             return [
                 'success' => false,
@@ -157,6 +173,7 @@ class ReverseProxyService
     public function deleteHost(ProxyHost $host): array
     {
         Process::run(['sudo', 'rm', '-f', $this->configPath($host)]);
+        $this->proxyAuthService->removeAuthMapFile($host);
 
         $this->sslService->removeCertificate($host->domain, $this->proxyCertDir($host->domain));
 
@@ -279,6 +296,12 @@ class ReverseProxyService
             $backup = $read->output();
         }
 
+        // The Apache config references a RewriteMap token file that must
+        // exist before the config test runs.
+        if ($host->auth_enabled) {
+            $this->proxyAuthService->ensureAuthMapFile($host);
+        }
+
         $config = $this->generateVhostConfig($host);
 
         $tmpFile = tempnam(sys_get_temp_dir(), 'proxyconf_');
@@ -316,6 +339,11 @@ class ReverseProxyService
             ];
         }
 
+        // Keep the login-protection token map in sync with the saved host
+        if ($host->auth_enabled) {
+            $this->proxyAuthService->writeAuthMapFile($host);
+        }
+
         $reload = Process::run(['sudo', 'systemctl', 'reload', 'apache2']);
 
         if ($reload->failed()) {
@@ -350,11 +378,16 @@ class ReverseProxyService
             .'    RewriteRule ^ - [F]'."\n"
             ."\n";
 
+        $authBlock = $host->auth_enabled
+            ? $this->generateAuthBlock($host)
+            : '';
+
         $config = '# Managed by NovaNAS Reverse Proxy - do not edit manually'."\n"
             .'<VirtualHost *:80>'."\n"
             .'    ServerName '.$host->domain."\n"
             ."\n"
-            .$hostGuard;
+            .$hostGuard
+            .$authBlock;
 
         // Port 80 vhost: either redirect to HTTPS or proxy over HTTP
         if ($sslActive && $host->https_redirect) {
@@ -388,6 +421,7 @@ class ReverseProxyService
             }
 
             $config .= $hostGuard
+                .$authBlock
                 .$this->generateProxyBlock($host, $backend, 'https')
                 .'    ErrorLog '.$logPrefix.'_error.log'."\n"
                 .'    CustomLog '.$logPrefix.'_access.log combined'."\n"
@@ -395,6 +429,55 @@ class ReverseProxyService
         }
 
         return $config;
+    }
+
+    /**
+     * Generate the "require NAS login" directives for both vhosts of a host:
+     * the login bridge is served locally instead of proxied, and visitors
+     * without a valid NAS session token are redirected to the NAS login page.
+     */
+    private function generateAuthBlock(ProxyHost $host): string
+    {
+        $publicPath = base_path('public');
+        $bridgePath = ProxyAuthService::BRIDGE_PATH;
+        $cookieName = ProxyAuthService::COOKIE_NAME;
+        $mapName = 'novanas_proxy_auth_map_'.$host->id;
+        $mapPath = $this->proxyAuthService->authMapPath($host);
+        $nas = $this->proxyAuthService->nasBaseUrl();
+        $loginUrl = $nas['scheme'].'://'.$nas['host'].'/proxy-auth/login';
+
+        $block = '    # NovaNAS login protection: the login bridge is served locally,'."\n"
+            .'    # everything else requires a valid NAS session token cookie'."\n"
+            .'    DocumentRoot '.$publicPath."\n"
+            ."\n"
+            .'    <Directory '.$publicPath.'>'."\n"
+            .'        Options -Indexes +FollowSymLinks'."\n"
+            .'        AllowOverride All'."\n"
+            .'        Require all granted'."\n"
+            .'    </Directory>'."\n"
+            ."\n"
+            .'    ProxyPass '.$bridgePath.' !'."\n"
+            .'    RewriteMap '.$mapName.' txt:'.$mapPath."\n"
+            ."\n"
+            .'    # The login bridge is served by the front controller directly;'."\n"
+            .'    # rewriting it here prevents the .htaccess front-controller'."\n"
+            .'    # rewrite from triggering an internal redirect that would re-run'."\n"
+            .'    # these rules (and bounce the request back to the login).'."\n"
+            .'    RewriteRule ^'.str_replace('/', '\/', $bridgePath).' /index.php [L]'."\n"
+            ."\n"
+            .'    # Visitors with a valid token pass through'."\n"
+            .'    RewriteCond %{HTTP_COOKIE} (?:^|;\s*)'.$cookieName.'=([A-Fa-f0-9]{64})'."\n"
+            .'    RewriteCond ${'.$mapName.':%1|0} =1'."\n"
+            .'    RewriteRule ^ - [S=1]'."\n"
+            ."\n"
+            .'    # Everyone else is redirected to the NAS login. The rule must'."\n"
+            .'    # consume the whole path (no remainder gets appended to the'."\n"
+            .'    # substitution) and QSA carries the original query parameters.'."\n"
+            .'    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/'."\n"
+            .'    RewriteRule .* '.$loginUrl.'?redirect=%{HTTP_HOST}%{REQUEST_URI} [NE,QSA,R=302,L]'."\n"
+            ."\n";
+
+        return $block;
     }
 
     /**
@@ -414,6 +497,10 @@ class ReverseProxyService
 
         $block .= '    ProxyPreserveHost On'."\n"
             .'    RequestHeader set X-Forwarded-Proto "'.$scheme.'"'."\n"
+            // Never proxy the ACME challenge: it must be served from the
+            // local webroot (global Alias /.well-known/acme-challenge),
+            // otherwise certificate issuance fails.
+            .'    ProxyPass /.well-known/acme-challenge !'."\n"
             .'    ProxyPass / '.$backend.'/'."\n"
             .'    ProxyPassReverse / '.$backend.'/'."\n";
 
@@ -622,6 +709,41 @@ class ReverseProxyService
 
         if ($host->enabled && $this->hasActiveCertificate($host)) {
             Process::run(['sudo', 'a2enmod', 'ssl']);
+        }
+    }
+
+    /**
+     * Extract the validated NAS user ids that may access the host.
+     *
+     * @param  array<string, mixed>  $data
+     * @return list<int>
+     */
+    private function extractAuthUserIds(array $data): array
+    {
+        if (! array_key_exists('auth_user_ids', $data)) {
+            return [];
+        }
+
+        $ids = $data['auth_user_ids'];
+
+        if (! is_array($ids)) {
+            return [];
+        }
+
+        return array_values(array_map(intval(...), $ids));
+    }
+
+    /**
+     * Sync the NAS users allowed to access the host.
+     *
+     * @param  list<int>  $userIds
+     */
+    private function syncAuthUsers(ProxyHost $host, array $userIds): void
+    {
+        if ($host->auth_enabled) {
+            $host->authUsers()->sync($userIds);
+        } else {
+            $host->authUsers()->sync([]);
         }
     }
 

@@ -64,6 +64,7 @@ I tried to offer a complete experience through the NovaNAS UI making you feel al
 - **Firewall Management**: Advanced firewall rules and port management using UFW
 - **DynDNS**: Free Dynamic DNS configuration for remote access
 - **SSL/TLS Certificates**: Automatic certificate management with Letsencrypt
+- **Reverse Proxy**: Built-in reverse proxy app for hosting domains behind your NAS, with Apache virtual hosts, SSL certificates and optional NAS login protection
 - **Network Configuration**: IP settings, UPNP
 - **VPN Server**: Built-in VPN for secure remote connections (coming soon)
 

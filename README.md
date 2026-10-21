@@ -1,3 +1,7 @@
+## IMPORTANT SECURITY NOTICE
+
+Please run the system upgrades or an apt upgrade via bash as soon as possible to upgrade PHP to the latest version due to their latest critical vulnerabilities.
+
 <p align="center">
   <img src="public/images/logo2.png" alt="NovaNAS Logo" width="400">
 </p>
